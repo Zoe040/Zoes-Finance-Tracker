@@ -1,5 +1,5 @@
 // Offline-Cache: Nach dem ersten Besuch läuft die App auch ohne Netz.
-const CACHE = 'zoes-finanzen-v22';
+const CACHE = 'zoes-finanzen-v24';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-180.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {

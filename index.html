@@ -356,6 +356,7 @@ label.switch{cursor:pointer}
 .scope-btn .sc-ic{width:18px;height:18px;flex:none}
 .scope-btn .sdots{display:none}
 @media (max-width:520px){.scope-btn{width:auto;padding:0 6px 0 9px;gap:2px}.scope-btn .sc-ch{display:block;width:14px;height:14px}.scope-btn.on::after{content:'';position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--accent)}.scope-btn{position:relative}}
+.btn.flip{width:44px;padding:0;font-size:1.1rem;font-weight:700}
 
 </style>
 </head>
@@ -3025,7 +3026,7 @@ A.cashCount = id => {
 /* ---------- Spartöpfe ---------- */
 function potRow(a, p) {
   const pct = p.target ? Math.min(1, (p.amount || 0) / p.target) : 0;
-  const sub = (p.target ? 'Ziel ' + C.fmt(p.target, { noCents: true }) + ' · ' + Math.round(pct * 100) + ' %' : p.updated ? 'eingetragen ' + rel(p.updated) : '') + (p.rate ? (p.target || p.updated ? ' · ' : '') + '+' + C.fmt(p.rate, { noCents: p.rate % 100 === 0 }) : '');
+  const sub = (p.target ? 'Ziel ' + C.fmt(p.target, { noCents: true }) + ' · ' + Math.round(pct * 100) + ' %' : p.updated ? 'eingetragen ' + rel(p.updated) : '') + (p.rate ? (p.target || p.updated ? ' · ' : '') + C.fmt(p.rate, { sign: true, noCents: p.rate % 100 === 0 }) : '');
   return '<button class="pot" data-act="potSheet" data-arg="' + a.id + ':' + p.id + '"><span class="em">' + esc(p.emoji || '🫙') + '</span><div class="mid"><div class="nm">' + esc(p.name) + '</div><div class="tiny muted">' + esc(sub) + '</div>' + (p.target ? '<div class="bar"><i style="width:' + pct * 100 + '%;background:' + (pct >= 1 ? 'var(--pos)' : a.color) + '"></i></div>' : '') + '</div><div class="amt-r">' + money(p.amount || 0) + '</div></button>';
 }
 function potsCard(a, withHead) {
@@ -3058,8 +3059,8 @@ function potEdit(a, p) {
   const isNew = !p.id;
   let h = '<div class="inrow"><div class="field fix" style="width:72px"><label for="pt-e">Emoji</label><input class="input" id="pt-e" value="' + esc(p.emoji || '') + '" placeholder="🫙" maxlength="4" style="text-align:center;font-size:1.3rem"></div><div class="field"><label for="pt-n">Name</label><input class="input" id="pt-n" value="' + esc(p.name) + '" placeholder="z. B. Urlaub"></div></div>' +
     '<div class="chips mb16" aria-label="Emoji wählen">' + POT_EMOJI.map(e => '<button type="button" class="chip" data-potem="' + e + '">' + e + '</button>').join('') + '</div>' +
-    '<div class="inrow"><div class="field"><label for="pt-a">Wie viel ist drin?</label><input class="input" id="pt-a" inputmode="decimal" value="' + (isNew ? '' : inputVal(p.amount)) + '" placeholder="0,00"></div><div class="field"><label for="pt-t">Ziel (optional)</label><input class="input" id="pt-t" inputmode="decimal" value="' + (p.target ? inputVal(p.target) : '') + '" placeholder="z. B. 600"></div></div>' +
-    '<div class="field"><label for="pt-r">Sparrate (optional)</label><input class="input" id="pt-r" inputmode="decimal" value="' + (p.rate ? inputVal(p.rate) : '') + '" placeholder="z. B. 50"><div class="tiny faint mt4">Dieser Betrag kommt dazu, wenn du auf „Sparraten einzahlen“ tippst.</div></div>' +
+    '<div class="inrow"><div class="field"><label for="pt-a">Wie viel ist drin?</label><div class="inrow"><input class="input" id="pt-a" inputmode="decimal" value="' + (isNew ? '' : signedVal(p.amount)) + '" placeholder="0,00">' + flipBtn('pt-a') + '</div></div><div class="field"><label for="pt-t">Ziel (optional)</label><input class="input" id="pt-t" inputmode="decimal" value="' + (p.target ? inputVal(p.target) : '') + '" placeholder="z. B. 600"></div></div>' +
+    '<div class="field"><label for="pt-r">Sparrate (optional)</label><div class="inrow"><input class="input" id="pt-r" inputmode="decimal" value="' + signedVal(p.rate) + '" placeholder="z. B. 50">' + flipBtn('pt-r') + '</div><div class="tiny faint mt4">Dieser Betrag kommt dazu, wenn du auf „Sparraten einzahlen“ tippst. Mit ± wird er zum Minusbetrag, der dann abgezogen wird.</div></div>' +
     (isNew ? '' : '<div class="lbl-s mb8">Schnell ändern</div><div class="inrow"><input class="input" id="pt-m" inputmode="decimal" placeholder="Betrag" aria-label="Betrag"><button class="btn fix" data-act="potMove" data-arg="' + a.id + ':' + p.id + ':1">+ Rein</button><button class="btn fix" data-act="potMove" data-arg="' + a.id + ':' + p.id + ':-1">− Raus</button></div>');
   if (isNew && a.type === 'asset' && !(a.pots || []).length && (a.history || []).length) h += '<p class="tiny warn mt0">Ab dem ersten Topf ergibt sich der Kontostand aus der Summe der Töpfe (bisher ' + money(C.accBalance(S, a)) + ').</p>';
   if (!isNew && (p.hist || []).length > 1) h += '<div class="section-t">Verlauf</div><div class="list">' + p.hist.slice().sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 6).map((x, i, arr) => '<div class="li"><div class="mid"><div class="t1">' + fmtD(x.date) + '</div></div><div class="end">' + money(x.value) + (arr[i + 1] ? '<div class="t2">' + C.fmt(x.value - arr[i + 1].value, { sign: true }) + '</div>' : '') + '</div></div>').join('') + '</div>';
@@ -3069,7 +3070,7 @@ function potEdit(a, p) {
   $('#pt-ok').onclick = () => {
     const name = $('#pt-n').value.trim(); if (!name) { toast('Bitte einen Namen eingeben'); $('#pt-n').focus(); return; }
     const amount = centsFromInput($('#pt-a').value); const target = Math.abs(centsFromInput($('#pt-t').value));
-    Object.assign(p, { name, emoji: $('#pt-e').value.trim() || '🫙', target, rate: Math.abs(centsFromInput($('#pt-r').value)) });
+    Object.assign(p, { name, emoji: $('#pt-e').value.trim() || '🫙', target, rate: centsFromInput($('#pt-r').value) || 0 });
     setPot(p, amount);
     if (isNew) { p.id = uid('p'); a.pots = a.pots || []; a.pots.push(p); }
     save(); closeSheet(); render(); toast(isNew ? 'Topf angelegt' : 'Gespeichert');
@@ -3086,23 +3087,27 @@ A.potMove = arg => {
   const before = p.amount || 0; setPot(p, before + v * +dir); save(); render(); potEdit(a, p);
   toast((+dir > 0 ? '+' : '−') + C.fmt(v) + ' bei ' + p.name, 'Rückgängig', () => { setPot(p, before); save(); render(); closeSheet(true); });
 };
+// Vorzeichen: Die Zahlentastatur am iPhone hat kein Minus, deshalb ein ±-Knopf
+function signedVal(c) { return c ? (c < 0 ? '-' : '') + inputVal(c) : ''; }
+function flipBtn(id) { return '<button type="button" class="btn fix flip" data-act="flipSign" data-arg="' + id + '" aria-label="Plus oder Minus">±</button>'; }
+A.flipSign = id => { const el = $('#' + id); const v = el.value.trim(); el.value = v.startsWith('-') ? v.slice(1) : '-' + (v || ''); el.focus(); };
 A.potsPay = id => {
   const a = accOf(id);
-  sheet('Auf Töpfe verteilen', '<p class="mt0 small muted">Vorausgefüllt sind deine Sparraten. Du kannst sie hier für dieses Mal ändern.</p>' + a.pots.map(p => '<div class="inrow" style="align-items:center"><div class="flex1 small"><b>' + esc((p.emoji || '🫙') + ' ' + p.name) + '</b><div class="tiny muted">jetzt ' + money(p.amount || 0) + '</div></div><input class="input fix" style="width:110px;text-align:right" id="pp-' + p.id + '" inputmode="decimal" value="' + (p.rate ? inputVal(p.rate) : '') + '" placeholder="0,00" aria-label="Betrag für ' + esc(p.name) + '"></div>').join('<div class="hr" style="margin:8px 0"></div>') +
+  sheet('Auf Töpfe verteilen', '<p class="mt0 small muted">Vorausgefüllt sind deine Sparraten. Du kannst sie für dieses Mal ändern. Mit ± machst du einen Betrag zum Minus, er wird dann aus dem Topf genommen.</p>' + a.pots.map(p => '<div class="inrow" style="align-items:center"><div class="flex1 small"><b>' + esc((p.emoji || '🫙') + ' ' + p.name) + '</b><div class="tiny muted">jetzt ' + money(p.amount || 0) + '</div></div><input class="input fix" style="width:110px;text-align:right" id="pp-' + p.id + '" inputmode="decimal" value="' + signedVal(p.rate) + '" placeholder="0,00" aria-label="Betrag für ' + esc(p.name) + '">' + flipBtn('pp-' + p.id) + '</div>').join('<div class="hr" style="margin:8px 0"></div>') +
     '<p class="tiny faint mt16 mb0">Die Töpfe sind deine Einteilung in der App. Das Geld selbst überweist du wie gewohnt in deiner Banking-App.</p>',
     '<button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn primary" id="pp-ok">Einzahlen</button>');
   $('#pp-ok').onclick = () => {
-    const before = a.pots.map(p => [p, p.amount || 0, (p.hist || []).slice(), p.updated]); let sum = 0;
-    for (const p of a.pots) { const v = Math.abs(centsFromInput($('#pp-' + p.id).value)); if (v) { setPot(p, (p.amount || 0) + v); sum += v; } }
-    if (!sum) { toast('Bitte mindestens einen Betrag eingeben'); return; }
+    const before = a.pots.map(p => [p, p.amount || 0, (p.hist || []).slice(), p.updated]); let sum = 0, n = 0;
+    for (const p of a.pots) { const v = centsFromInput($('#pp-' + p.id).value); if (v) { setPot(p, (p.amount || 0) + v); sum += v; n++; } }
+    if (!n) { toast('Bitte mindestens einen Betrag eingeben'); return; }
     save(); closeSheet(); render();
-    toast(C.fmt(sum) + ' auf Töpfe verteilt', 'Rückgängig', () => { for (const [p, amt, hist, upd] of before) { p.amount = amt; p.hist = hist; p.updated = upd; } save(); render(); });
+    toast((sum < 0 ? C.fmt(-sum) + ' aus den Töpfen genommen' : C.fmt(sum) + ' auf Töpfe verteilt'), 'Rückgängig', () => { for (const [p, amt, hist, upd] of before) { p.amount = amt; p.hist = hist; p.updated = upd; } save(); render(); });
   };
 };
 A.potDel = arg => { const [aid, pid] = arg.split(':'); const a = accOf(aid); confirmSheet('Topf löschen?', 'Der Topf verschwindet. Das Geld auf dem Konto bleibt natürlich, es ist dann nur keinem Topf mehr zugeordnet.', 'Löschen', () => { a.pots = a.pots.filter(p => p.id !== pid); save(); render(); toast('Topf gelöscht'); }, true); };
 A.potsAll = id => {
   const a = accOf(id);
-  sheet('Stände eintragen', '<p class="mt0 small muted">Trag für jeden Topf ein, wie viel gerade drin ist.</p>' + a.pots.map(p => '<div class="field"><label for="pa-' + p.id + '">' + esc((p.emoji || '🫙') + ' ' + p.name) + '</label><input class="input" id="pa-' + p.id + '" inputmode="decimal" value="' + inputVal(p.amount) + '"></div>').join('') + (a.type === 'savings' ? '<p class="tiny faint">Laut Bank sind auf dem Konto ' + money(C.accBalance(S, a)) + '.</p>' : ''),
+  sheet('Stände eintragen', '<p class="mt0 small muted">Trag für jeden Topf ein, wie viel gerade drin ist.</p>' + a.pots.map(p => '<div class="field"><label for="pa-' + p.id + '">' + esc((p.emoji || '🫙') + ' ' + p.name) + '</label><div class="inrow"><input class="input" id="pa-' + p.id + '" inputmode="decimal" value="' + signedVal(p.amount) + '">' + flipBtn('pa-' + p.id) + '</div></div>').join('') + (a.type === 'savings' ? '<p class="tiny faint">Laut Bank sind auf dem Konto ' + money(C.accBalance(S, a)) + '.</p>' : ''),
     '<button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn primary" id="pa-ok">Speichern</button>');
   $('#pa-ok').onclick = () => { for (const p of a.pots) setPot(p, centsFromInput($('#pa-' + p.id).value)); save(); closeSheet(); render(); toast('Stände gespeichert'); };
 };
