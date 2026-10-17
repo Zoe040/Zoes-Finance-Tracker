@@ -232,8 +232,8 @@ textarea.input{min-height:80px;resize:vertical}
 /* FAB / Toast */
 .fab{position:fixed;right:18px;bottom:calc(var(--nav-h) + var(--safe-b) + 16px);z-index:25;width:58px;height:58px;border-radius:18px;border:0;background:var(--accent);color:#fff;box-shadow:0 6px 18px rgba(255,102,0,.35);display:grid;place-items:center}
 .fab svg{width:28px;height:28px}
-.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + var(--safe-b) + 90px);transform:translateX(-50%) translateY(20px);background:#14212f;color:#fff;padding:12px 16px;border-radius:12px;z-index:80;opacity:0;transition:all .2s;display:flex;gap:12px;align-items:center;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:.94rem}
-.toast.on{opacity:1;transform:translateX(-50%)}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + var(--safe-b) + 90px);transform:translateX(-50%) translateY(20px);background:#14212f;color:#fff;padding:12px 16px;border-radius:12px;z-index:80;opacity:0;pointer-events:none;transition:all .2s;display:flex;gap:12px;align-items:center;max-width:calc(100vw - 32px);width:max-content;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:.94rem}
+.toast.on{opacity:1;pointer-events:auto;transform:translateX(-50%)}
 .toast button{border:0;background:none;color:#7cc0ff;font-weight:700;padding:4px}
 
 /* Notices */
@@ -335,6 +335,27 @@ pre.copy{white-space:pre-wrap;background:var(--surface-2);border-radius:12px;pad
 .donut-wrap .flex1,.flex1{min-width:0}.tiles>*{min-width:0}
 .switch .ic{width:34px;height:34px;border-radius:10px;flex:none}.switch .ic svg{width:19px;height:19px}
 .icon-btn:disabled{opacity:.25;cursor:default}
+/* Kontoauswahl im Kopf */
+.scope-btn{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:.82rem;font-weight:600;max-width:150px;flex:0 1 auto;min-width:0;cursor:pointer}
+.scope-btn.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand)}
+.scope-btn .sl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.scope-btn .sdots{display:flex;flex:none}
+.scope-btn .sdots i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--surface);margin-left:-4px}
+.scope-btn .sdots i:first-child{margin-left:0}
+.scope-btn .sc-ch{width:16px;height:16px;flex:none;opacity:.7}
+@media (max-width:380px){.top{gap:4px}}
+label.switch{cursor:pointer}
+.mt4{margin-top:4px}
+.scope-note{display:flex;align-items:center;gap:10px;padding:8px 12px;margin:4px 0 12px;border-radius:12px;background:var(--brand-soft);font-size:.88rem}
+.scope-note .mid{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scope-note .sdots{display:flex}.scope-note .sdots i{width:10px;height:10px;border-radius:50%;margin-left:-3px;border:1.5px solid var(--surface)}
+.span-pick{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.span-pick label{font-size:.85rem;color:var(--text-2);font-weight:600}
+.span-pick select{flex:1;height:40px;padding-top:0;padding-bottom:0}
+@media (max-width:520px){.scope-btn{width:40px;height:40px;padding:0;justify-content:center;border-radius:12px;max-width:none;flex:none}.scope-btn .sl,.scope-btn .sc-ch{display:none}.scope-btn .sdots i{width:11px;height:11px}}
+.scope-btn .sc-ic{width:18px;height:18px;flex:none}
+.scope-btn .sdots{display:none}
+@media (max-width:520px){.scope-btn{width:auto;padding:0 6px 0 9px;gap:2px}.scope-btn .sc-ch{display:block;width:14px;height:14px}.scope-btn.on::after{content:'';position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--accent)}.scope-btn{position:relative}}
 
 </style>
 </head>
@@ -654,22 +675,36 @@ C.sameHolder = (iban, accounts) => {
   return accounts.some(a => /^DE\d{20}$/.test(a.iban) && a.iban !== iban && a.iban.slice(4, 12) === iban.slice(4, 12) && a.iban.slice(-6) === iban.slice(-6));
 };
 /* Regeln: Bedingungen (UND) → Aktionen */
-C.FIELDS = { merchant: 'Händler', name: 'Name', purpose: 'Verwendungszweck', text: 'Buchungsart', iban: 'IBAN', amount: 'Betrag (€)', acc: 'Konto' };
-C.OPS = { contains: 'enthält', is: 'ist genau', starts: 'beginnt mit', gt: 'größer als', lt: 'kleiner als' };
-C.ruleMatches = (rule, t) => (rule.conds || []).length > 0 && rule.conds.every(c => {
+C.FIELDS = { any: 'Händler, Name oder Zweck', merchant: 'Händler', name: 'Name', purpose: 'Verwendungszweck', text: 'Buchungsart', iban: 'IBAN', amount: 'Betrag (€)', acc: 'Konto' };
+C.OPS = { contains: 'enthält', not: 'enthält nicht', is: 'ist genau', isnot: 'ist nicht', starts: 'beginnt mit', ends: 'endet mit', gt: 'größer als', lt: 'kleiner als', out: 'ist eine Ausgabe', in: 'ist eine Einnahme' };
+C.ruleMatches = (rule, t, S) => (rule.conds || []).length > 0 && rule.conds.every(c => {
   if (c.field === 'amount') {
-    const v = Math.round(parseFloat(String(c.value).replace(',', '.')) * 100);
+    if (c.op === 'out') return t.amount < 0;
+    if (c.op === 'in') return t.amount > 0;
+    const v = Math.round(parseFloat(String(c.value).replace(/\./g, '').replace(',', '.')) * 100);
     if (!isFinite(v)) return false;
-    if (c.op === 'gt') return t.amount > v;
-    if (c.op === 'lt') return t.amount < v;
-    return t.amount === v;
+    // Beträge vergleicht man wie gelesen: „größer als 50“ meint 50 € Ausgabe oder Einnahme
+    const amt = v <= 0 ? t.amount : Math.abs(t.amount); // 0 und negative Werte: mit Vorzeichen (alte Lern-Regeln nutzen „kleiner als 0“)
+    if (c.op === 'gt') return amt > v;
+    if (c.op === 'lt') return amt < v;
+    if (c.op === 'isnot') return amt !== v;
+    return amt === v;
   }
-  const a = C.norm(c.field === 'merchant' ? t.merchant : t[c.field]);
+  let raws;
+  if (c.field === 'any') raws = [[t.merchant, t.name, t.purpose].join(' ')];
+  else if (c.field === 'acc') { const ac = S && S.accounts.find(x => x.id === t.acc); raws = ac ? [ac.name, ac.iban || ''] : [t.acc]; }
+  else raws = [t[c.field]];
   const b = C.norm(c.value);
   if (!b) return false;
-  if (c.op === 'is') return a === b;
-  if (c.op === 'starts') return a.startsWith(b);
-  return (' ' + a + ' ').includes(' ' + b + ' ') || a.includes(b);
+  const test = raw => {
+    const a = C.norm(raw); const has = a.includes(b);
+    if (c.op === 'is' || c.op === 'isnot') return a === b;
+    if (c.op === 'starts') return a.startsWith(b);
+    if (c.op === 'ends') return a.endsWith(b);
+    return has;
+  };
+  const hit = raws.some(test);
+  return c.op === 'not' || c.op === 'isnot' ? !hit : hit;
 });
 
 // C.lastConf: 'sure', wenn die Zuordnung eindeutig ist (Buchungsart oder Händlername), sonst 'guess'
@@ -711,7 +746,7 @@ C.classify = (S, t, force) => {
   if (t.catSrc === 'user' && !force) return t;
   let done = false;
   for (const r of S.rules) {
-    if (r.off || !C.ruleMatches(r, t)) continue;
+    if (r.off || !C.ruleMatches(r, t, S)) continue;
     if (r.cat) { t.cat = r.cat; t.catSrc = 'rule'; t.transfer = C.cat(S, r.cat).group === 'transfer'; done = true; }
     if (r.transfer) { t.transfer = true; t.cat = 'umbuchung'; t.catSrc = 'rule'; done = true; }
     if (r.tag) { t.tags = t.tags || []; if (!t.tags.includes(r.tag)) t.tags.push(r.tag); }
@@ -913,6 +948,14 @@ C.catTotals = (S, a, b, f) => {
   }
   return tot;
 };
+C.catGross = (S, a, b, f) => {
+  const out = {}, inn = {};
+  for (const t of S.tx) {
+    if (t.date < a || t.date > b || !C.counts(t) || (f && !f(t))) continue;
+    for (const p of C.partsOf(t)) { if (p.amount < 0) out[p.cat] = (out[p.cat] || 0) - p.amount; else inn[p.cat] = (inn[p.cat] || 0) + p.amount; }
+  }
+  return { out, in: inn };
+};
 C.flows = (S, a, b, f) => {
   const tot = C.catTotals(S, a, b, f);
   let income = 0, out = 0; const byGroup = { fix: 0, flex: 0, rare: 0 };
@@ -923,6 +966,24 @@ C.flows = (S, a, b, f) => {
   }
   return { income, out, net: income - out, byGroup, tot };
 };
+
+// Umbuchungen auf/von eigene(n) Konten im Zeitraum (nur Alltagskonten als Absender, damit nichts doppelt zählt)
+C.transferSums = (S, a, b, f) => {
+  let out = 0, inn = 0;
+  for (const t of S.tx) {
+    if (t.date < a || t.date > b || !t.transfer || t.excluded || (f && !f(t)) || !C.spendAcc(S, t.acc)) continue;
+    if (t.amount < 0) out -= t.amount; else inn += t.amount;
+  }
+  return { out, in: inn };
+};
+
+/* ---------- Kontoauswahl (welche Konten man gerade sieht) ---------- */
+C.scopeIds = S => {
+  const ids = (S.settings.scope || []).filter(id => S.accounts.some(a => a.id === id));
+  return ids.length && ids.length < S.accounts.length ? ids : null;
+};
+C.scopeF = S => { const ids = C.scopeIds(S); return ids ? t => ids.includes(t.acc) : null; };
+C.inScope = (S, accId) => { const ids = C.scopeIds(S); return !ids || ids.includes(accId); };
 
 /* ---------- Wiederkehrende Zahlungen ---------- */
 function median(a) { const s = a.slice().sort((x, y) => x - y); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : 0; }
@@ -1175,12 +1236,12 @@ C.fullPeriods = (S, n) => {
   if (!out.length) { const p0 = C.periodOf(S, r[0]); if (p0.end <= r[1]) out.push(p0); }
   return out;
 };
-C.costOfLiving = (S, n) => {
+C.costOfLiving = (S, n, flt) => {
   const ps = C.fullPeriods(S, n || 3);
   if (!ps.length) return null;
   const acc = { fix: 0, flex: 0, rare: 0, income: 0 }; const byCat = {};
   for (const p of ps) {
-    const f = C.flows(S, p.start, p.end);
+    const f = C.flows(S, p.start, p.end, flt);
     acc.fix += f.byGroup.fix || 0; acc.flex += f.byGroup.flex || 0; acc.rare += f.byGroup.rare || 0; acc.income += f.income;
     for (const id in f.tot) byCat[id] = (byCat[id] || 0) + f.tot[id];
   }
@@ -1280,12 +1341,12 @@ C.monthEnds = S => {
   return months;
 };
 C.accSeries = (S, a) => C.monthEnds(S).map(d => ({ date: d, value: C.accBalanceAt(S, a, d) }));
-C.netWorthSeries = S => C.monthEnds(S).map(d => ({ date: d, value: S.accounts.filter(a => !a.hidden).reduce((v, a) => v + C.accBalanceAt(S, a, d), 0) }));
+C.netWorthSeries = (S, accs) => C.monthEnds(S).map(d => ({ date: d, value: (accs || S.accounts.filter(a => !a.hidden)).reduce((v, a) => v + C.accBalanceAt(S, a, d), 0) }));
 
 /* ---------- Händler ---------- */
-C.merchants = (S, a, b) => {
+C.merchants = (S, a, b, flt) => {
   const m = {};
-  for (const t of C.inRange(S, a, b, t => C.counts(t) && t.amount < 0)) {
+  for (const t of C.inRange(S, a, b, t => C.counts(t) && t.amount < 0 && (!flt || flt(t)))) {
     const k = t.merchant || 'Unbekannt';
     const x = m[k] = m[k] || { name: k, sum: 0, n: 0, last: '', cat: t.cat };
     x.sum += -t.amount; x.n++; if (t.date > x.last) x.last = t.date;
@@ -1377,23 +1438,23 @@ C.notices = S => {
 };
 
 /* ---------- Monatsrückblick ---------- */
-C.review = (S, p) => {
-  const f = C.flows(S, p.start, p.end);
+C.review = (S, p, flt) => {
+  const f = C.flows(S, p.start, p.end, flt);
   const prev = C.fullPeriods(S, 6).filter(q => q.start < p.start).slice(0, 3);
-  const avgOut = prev.length ? Math.round(prev.reduce((s, q) => s + C.flows(S, q.start, q.end).out, 0) / prev.length) : null;
+  const avgOut = prev.length ? Math.round(prev.reduce((s, q) => s + C.flows(S, q.start, q.end, flt).out, 0) / prev.length) : null;
   const cats = Object.entries(f.tot).filter(([id]) => { const g = C.cat(S, id).group; return g !== 'income' && g !== 'transfer'; }).map(([id, v]) => ({ cat: C.cat(S, id), v: -v })).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
   const changes = [];
   if (prev.length) {
     for (const c of S.cats) {
       if (c.group === 'income' || c.group === 'transfer') continue;
       const now = -(f.tot[c.id] || 0);
-      const avg = Math.round(prev.reduce((s, q) => s - (C.catTotals(S, q.start, q.end)[c.id] || 0), 0) / prev.length);
+      const avg = Math.round(prev.reduce((s, q) => s - (C.catTotals(S, q.start, q.end, flt)[c.id] || 0), 0) / prev.length);
       if (Math.abs(now - avg) >= 2000 && (avg === 0 || Math.abs(now - avg) / Math.max(avg, 1) >= 0.25)) changes.push({ cat: c, now, avg, d: now - avg });
     }
     changes.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
   }
   const newRec = S.recurring.filter(r => r.created >= p.start && r.created <= C.addDays(p.end, 40) && r.status !== 'ignoriert' && r.count <= 2);
-  const biggest = C.inRange(S, p.start, p.end, t => C.counts(t) && t.amount < 0).sort((a, b) => a.amount - b.amount).slice(0, 3);
+  const biggest = C.inRange(S, p.start, p.end, t => C.counts(t) && t.amount < 0 && (!flt || flt(t))).sort((a, b) => a.amount - b.amount).slice(0, 3);
   const rate = f.income > 0 ? (f.income - f.out) / f.income : null;
   return { p, f, avgOut, cats, changes: changes.slice(0, 4), newRec, biggest, rate };
 };
@@ -1578,7 +1639,7 @@ const P = {
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff: '<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
-  left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 18l6-6-6-6"/>',
+  left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 18l6-6-6-6"/>', down: '<path d="M6 9l6 6 6-6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>', check: '<path d="M4 12.5l5 5L20 6.5"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
@@ -1812,11 +1873,12 @@ function render() {
   const moreBadge = !bar.includes('rec') && S.recurring.some(r => r.status === 'neu');
   const title = U.view === 'report' && U.arg ? ((S.reports.find(r => r.id === U.arg) || {}).name || 'Bericht') : U.view === 'account' && U.arg ? ((accOf(U.arg) || {}).name || 'Konto') : TITLES[U.view] || '';
   const head = '<header class="top">' + (back ? '<button class="icon-btn" data-act="back" aria-label="Zurück">' + I('left') + '</button>' : '<button class="icon-btn mob-only" data-act="go" data-arg="more" aria-label="Mehr" title="Mehr"' + (U.view === 'more' ? ' aria-current="page"' : '') + '>' + I('grid') + (moreBadge ? '<span class="badge dot-badge"></span>' : '') + '</button>') +
-    '<h1>' + esc(title) + '</h1>' +
+    '<h1>' + esc(title) + '</h1>' + scopeBtn() +
     (U.view === 'tx' ? '<button class="icon-btn" data-act="openImport" aria-label="CSV importieren" title="CSV importieren">' + I('upload') + '</button>' : '') +
     '<button class="icon-btn" data-act="toggleHide" aria-label="' + (S.settings.hide ? 'Beträge zeigen' : 'Beträge ausblenden') + '" title="' + (S.settings.hide ? 'Beträge zeigen' : 'Beträge ausblenden') + '">' + I(S.settings.hide ? 'eyeoff' : 'eye') + '</button>' +
     '<button class="icon-btn" data-act="openNotices" aria-label="Hinweise" title="Hinweise">' + I('bell') + (notes.length ? '<span class="badge">' + notes.length + '</span>' : '') + '</button></header>';
   let body = S.meta.demo ? '<button class="note" data-act="leaveDemo" style="background:var(--accent-soft);margin-top:4px"><span class="n-ic">🧪</span><span class="mid"><b>Beispieldaten.</b> Alles hier ist erfunden. <span style="color:var(--brand);font-weight:600">Eigene CSV laden</span></span></button>' : '';
+  body += scopeNote();
   try { body += (V[U.view] || V.start)(U.arg); } catch (e) { console.error(e); body = '<div class="card"><b>Hier ist etwas schiefgelaufen.</b><p class="muted small">' + esc(e.message) + '</p><button class="btn" data-act="go" data-arg="start">Zur Übersicht</button></div>'; }
   app.innerHTML =
     '<aside class="side" aria-label="Navigation"><div class="brandmark"><span class="logo">' + I('euro') + '</span>Zoes Finanzen</div>' + Object.keys(NAV_ALL).concat('more').map(v => { const [l, ic] = v === 'more' ? ['Mehr', 'grid'] : NAV_ALL[v]; return '<button data-act="go" data-arg="' + v + '"' + (tab === v ? ' aria-current="page"' : '') + '>' + I(ic) + l + navBadge(v) + '</button>'; }).join('') +
@@ -1828,6 +1890,41 @@ function render() {
   lastView = scrollKey;
   if (U.after) { const f = U.after; U.after = null; setTimeout(f, 0); }
 }
+/* ---------- Kontoauswahl oben rechts ---------- */
+const SCOPED = ['start', 'tx', 'analysis', 'calendar', 'col'];
+function scopeLabel() {
+  const ids = C.scopeIds(S); if (!ids) return 'Alle Konten';
+  return ids.length === 1 ? (accOf(ids[0]) || {}).name || 'Konto' : ids.length + ' Konten';
+}
+function scopeBtn() {
+  if (!S.accounts.length || !SCOPED.includes(U.view)) return '';
+  const ids = C.scopeIds(S); const accs = ids ? ids.map(accOf) : S.accounts.slice(0, 3);
+  return '<button class="scope-btn' + (ids ? ' on' : '') + '" data-act="scopeSheet" aria-label="Konten auswählen, gerade: ' + esc(scopeLabel()) + '" title="Konten auswählen">' + I('bank', 'sc-ic') + '<span class="sdots">' + accs.slice(0, 3).map(a => '<i style="background:' + a.color + '"></i>').join('') + '</span><span class="sl">' + esc(scopeLabel()) + '</span>' + I('down', 'sc-ch') + '</button>';
+}
+// Hinweis oben in der Ansicht, solange nicht alle Konten gezeigt werden
+function scopeNote() {
+  if (!SCOPED.includes(U.view) || !C.scopeIds(S)) return '';
+  return '<div class="scope-note"><span class="sdots">' + C.scopeIds(S).map(id => '<i style="background:' + accOf(id).color + '"></i>').join('') + '</span><span class="mid">Nur <b>' + esc(C.scopeIds(S).map(id => accOf(id).name).join(' + ')) + '</b></span><button class="link small" data-act="scopeSheet">Ändern</button><button class="link small" data-act="scopeOnly" data-arg="">Alle</button></div>';
+}
+A.scopeSheet = () => {
+  const ids = C.scopeIds(S) || S.accounts.map(a => a.id); const all = !C.scopeIds(S);
+  const groups = Object.keys(C.ACC_GROUPS).map(g => [g, S.accounts.filter(a => C.accGroup(a) === g)]).filter(([, l]) => l.length);
+  const body = '<div class="chips mb16" role="group" aria-label="Schnellauswahl"><button class="chip" aria-pressed="' + all + '" data-act="scopeOnly" data-arg="">Alle Konten</button>' + S.accounts.map(a => '<button class="chip" aria-pressed="' + (!all && ids.length === 1 && ids[0] === a.id) + '" data-act="scopeOnly" data-arg="' + a.id + '"><i class="dot" style="background:' + a.color + '"></i> Nur ' + esc(a.name) + '</button>').join('') + '</div>' +
+    '<div class="lbl-s mb8">Oder mehrere zusammen</div>' + groups.map(([g, l]) => '<div class="tiny muted mt8">' + C.ACC_GROUPS[g] + '</div>' + l.map(a => '<label class="switch"><input type="checkbox" class="tog" data-ch="scopeOn" data-arg="' + a.id + '"' + (ids.includes(a.id) ? ' checked' : '') + '><i class="dot" style="background:' + a.color + ';width:10px;height:10px"></i><div class="mid">' + esc(a.name) + '<div class="tiny muted">' + money(C.accBalance(S, a)) + '</div></div></label>').join('')).join('') +
+    '<p class="tiny faint mt16 mb0">Gilt für Übersicht, Umsätze, Auswertung, Kalender und „Was kostet mein Leben?“. Budget, „Frei verfügbar“ und Prognose rechnen immer mit deinen Alltagskonten (Girokonto und Bargeld). Umbuchungen zwischen deinen Konten zählen nie als Einnahme oder Ausgabe.</p>';
+  if (S.accounts.length < 2) { sheet('Welche Konten zeigen?', '<p class="mt0">Du hast bisher nur ein Konto (' + esc(S.accounts[0].name) + '). Sobald du dein Sparkonto oder Bargeld anlegst, wählst du hier, welches du siehst, oder alle zusammen.</p>', '<button class="btn" data-act="closeSheet">Schließen</button><button class="btn primary" data-act="scopeToAcc">Konto anlegen</button>'); return; }
+  sheet('Welche Konten zeigen?', body, '<button class="btn primary block" data-act="closeSheet">Fertig</button>', { id: 'scope', re: A.scopeSheet });
+};
+function setScope(ids) { S.settings.scope = ids.length >= S.accounts.length ? [] : ids; U.tx.acc = ''; save(); render(); if (U.sheetOpen === 'scope') A.scopeSheet(); }
+A.scopeToAcc = () => { closeSheet(true); A.push('accounts'); };
+A.scopeOnly = id => setScope(id ? [id] : []);
+CH.scopeOn = (id, el) => {
+  let ids = C.scopeIds(S) || S.accounts.map(a => a.id);
+  ids = el.checked ? ids.concat(id) : ids.filter(x => x !== id);
+  if (!ids.length) { el.checked = true; toast('Mindestens ein Konto bleibt ausgewählt.'); return; }
+  setScope(S.accounts.map(a => a.id).filter(x => ids.includes(x)));
+};
+
 function go(v, arg) { U.stack = []; U.view = v; U.arg = arg; render(); window.scrollTo(0, 0); }
 function push(v, arg) { U.stack.push([U.view, U.arg, window.scrollY]); U.view = v; U.arg = arg; render(); window.scrollTo(0, 0); }
 A.go = v => { closeSheet(true); if (v === 'tx') U.tx = { q: '', cat: '', acc: '', kind: '', tag: '', flag: '', range: 'p', merchant: '' }; go(v); };
@@ -1868,6 +1965,8 @@ V.start = () => {
 };
 const TILE = {};
 TILE.free = () => {
+  // Bei „nur Sparkonto“ passt „frei verfügbar“ nicht, das gilt für Girokonto und Bargeld
+  const ids = C.scopeIds(S); if (ids && !ids.some(id => C.spendAcc(S, id))) return '';
   const p = C.periodOf(S, C.refDate(S)); const f = C.free(S, p);
   const open = U.freeOpen;
   const li = (l, v, cls) => '<div class="li"><span>' + l + '</span>' + money(v, { cls: cls }) + '</div>';
@@ -1878,14 +1977,14 @@ TILE.free = () => {
 };
 A.freeToggle = () => { U.freeOpen = !U.freeOpen; render(); };
 TILE.balance = () => {
-  const vis = S.accounts.filter(a => !a.hidden);
+  const vis = S.accounts.filter(a => !a.hidden && C.inScope(S, a.id));
   if (!vis.length) return '';
   const total = vis.reduce((s, a) => s + C.accBalance(S, a), 0);
   const many = vis.length > 1;
   let h = '<div class="card"><div class="card-h"><h2>' + (many ? 'Konten' : 'Kontostand') + '</h2><button class="link" data-act="push" data-arg="accounts">' + (many ? 'Übersicht' : esc(vis[0].name)) + '</button></div>' +
     '<div class="stat"><span class="v">' + money(total) + '</span>' + (many ? '<span class="tiny faint">gesamt, ' + plural(vis.length, 'Konto', 'Konten') + '</span>' : '') + '</div>';
   if (many) h += '<div class="list mt8">' + vis.slice(0, 5).map(a => '<button class="li" style="padding:8px 0" data-act="push" data-arg="account" data-arg2="' + a.id + '"><i class="dot" style="background:' + a.color + ';width:10px;height:10px"></i><div class="mid"><div class="t1" style="font-weight:600">' + esc(a.name) + '</div></div><div class="end">' + money(C.accBalance(S, a)) + '</div></button>').join('') + '</div>';
-  if (S.accounts.some(a => a.type === 'giro' && a.inForecast !== false)) {
+  if (vis.some(a => a.type === 'giro' && a.inForecast !== false)) {
     const fc = C.forecast(S, 30);
     const pts = fc.days.map(d => ({ v: d.balance }));
     const low = fc.min.balance < (S.settings.lowBalance || 0);
@@ -1899,7 +1998,7 @@ TILE.pots = () => {
   if (!accs.length) return '';
   const pots = accs.flatMap(a => a.pots.map(p => [a, p])).sort((x, y) => (y[1].amount || 0) - (x[1].amount || 0));
   const sum = pots.reduce((s, [, p]) => s + (p.amount || 0), 0);
-  return '<div class="card"><div class="card-h"><h2>Spartöpfe</h2><button class="link" data-act="push" data-arg="pots">' + money(sum) + '</button></div><div class="pot-grid">' + pots.slice(0, 4).map(([a, p]) => potRow(a, p)).join('') + '</div>' + (pots.length > 4 ? '<button class="btn small ghost mt8" data-act="push" data-arg="pots">Alle ' + pots.length + ' Töpfe</button>' : '') + '</div>';
+  return '<div class="card"><div class="card-h"><h2>Spartöpfe</h2><button class="link" data-act="push" data-arg="pots">' + money(sum) + '</button></div><div class="pot-grid">' + pots.slice(0, 4).map(([a, p]) => potRow(a, p)).join('') + '</div>' + '<div class="row-btns mt8">' + (accs.length === 1 && pots.some(([, p]) => p.rate) ? '<button class="btn small primary" data-act="potsPay" data-arg="' + accs[0].id + '">' + I('piggy') + 'Sparraten einzahlen</button>' : '') + (pots.length > 4 ? '<button class="btn small ghost" data-act="push" data-arg="pots">Alle ' + pots.length + ' Töpfe</button>' : '') + '</div></div>';
 };
 TILE.review = () => {
   const n = S.tx.filter(t => !t.reviewed).length;
@@ -1932,12 +2031,14 @@ TILE.notices = () => {
 TILE.month = () => {
   const cur = C.periodOf(S, C.refDate(S)); const p = C.prevPeriod(S, cur);
   const r = C.dataRange(S); if (!r || p.end < r[0]) return '';
-  const rv = C.review(S, p);
+  const rv = C.review(S, p, C.scopeF(S)); const tr = C.transferSums(S, p.start, p.end, C.scopeF(S));
+  if (!rv.f.income && !rv.f.out && !tr.out) return '';
   return '<div class="card"><div class="card-h"><h2>Rückblick ' + esc(p.label) + '</h2><button class="link" data-act="reviewSheet" data-arg="' + p.start + '">Ansehen</button></div><div class="stats"><div class="stat"><span class="tiny muted">Einnahmen</span><span class="v pos">' + money(rv.f.income) + '</span></div><div class="stat"><span class="tiny muted">Ausgaben</span><span class="v">' + money(rv.f.out) + '</span></div><div class="stat"><span class="tiny muted">Übrig</span><span class="v ' + (rv.f.net < 0 ? 'neg' : '') + '">' + money(rv.f.net, { sign: true }) + '</span></div></div>' +
+    (tr.out ? '<div class="small muted mt8">Davon nicht als Ausgabe gezählt: <b>' + money(tr.out) + '</b> auf eigene Konten umgebucht (z. B. Sparkonto).</div>' : '') +
     (rv.cats.length ? '<div class="small muted mt8">Am meisten: ' + rv.cats.slice(0, 3).map(x => esc(x.cat.emoji + ' ' + x.cat.name)).join(', ') + '</div>' : '') + '</div>';
 };
 TILE.cats = () => {
-  const p = C.periodOf(S, C.refDate(S)); const f = C.flows(S, p.start, p.end);
+  const p = C.periodOf(S, C.refDate(S)); const f = C.flows(S, p.start, p.end, C.scopeF(S));
   const segs = Object.entries(f.tot).map(([id, v]) => ({ c: catOf(id), v: -v })).filter(x => x.v > 0 && x.c.group !== 'income' && x.c.group !== 'transfer').sort((a, b) => b.v - a.v);
   if (!segs.length) return '';
   const top = segs.slice(0, 5); const rest = segs.slice(5).reduce((s, x) => s + x.v, 0);
@@ -2005,8 +2106,9 @@ function txFiltered() {
   const q = C.norm(F.q);
   return S.tx.filter(t => {
     if (F.range === 'p' && (t.date < p.start || t.date > p.end)) return false;
+    if (F.range !== 'p' && ((F.from && t.date < F.from) || (F.to && t.date > F.to))) return false;
     if (F.cat && !(t.cat === F.cat || (t.splits || []).some(s => s.cat === F.cat))) return false;
-    if (F.acc && t.acc !== F.acc) return false;
+    if (F.acc ? t.acc !== F.acc : !C.inScope(S, t.acc)) return false;
     if (F.merchant && t.merchant !== F.merchant) return false;
     if (F.kind === 'out' && (t.amount >= 0 || t.transfer)) return false;
     if (F.kind === 'in' && (t.amount <= 0 || t.transfer)) return false;
@@ -2037,12 +2139,12 @@ V.tx = () => {
   if (F.kind) active.push(['kind', { out: 'Ausgaben', in: 'Einnahmen', tr: 'Umbuchungen' }[F.kind]]);
   if (F.tag) active.push(['tag', '# ' + F.tag]);
   if (F.merchant) active.push(['merchant', F.merchant]);
+  if (F.range !== 'p' && (F.from || F.to)) active.push(['span', fmtD(F.from, 'short') + '–' + fmtD(F.to)]);
+  if (F.acc) active.push(['acc', 'Konto: ' + ((accOf(F.acc) || {}).name || '?')]);
   if (F.flag) active.push(['flag', FLAGS[F.flag]]);
   let h = '';
   if (nOpen) h += '<button class="note" data-act="startReview" style="background:var(--accent-soft)"><span class="n-ic">🧐</span><span class="mid"><b>' + plural(nOpen, 'Buchung', 'Buchungen') + '</b> noch nicht geprüft. Jetzt kurz durchgehen?</span></button>';
   h += '<div class="flex mb8"><div class="search flex1">' + I('search') + '<input class="input" type="search" placeholder="Suchen: Händler, Zweck, Betrag …" value="' + esc(F.q) + '" data-in="txq" aria-label="Umsätze durchsuchen"></div><button class="btn ghost" data-act="txFilter" aria-label="Filter">' + I('filter') + '<span class="sr">Filter</span></button></div>';
-  const accs = S.accounts.filter(a => S.tx.some(t => t.acc === a.id));
-  if (accs.length > 1) h += '<div class="chips scroll acc-chips" role="group" aria-label="Konto"><button class="chip" aria-pressed="' + !F.acc + '" data-act="txAcc" data-arg="">Alle Konten</button>' + accs.map(a => '<button class="chip" aria-pressed="' + (F.acc === a.id) + '" data-act="txAcc" data-arg="' + a.id + '"><i class="dot" style="background:' + a.color + '"></i> ' + esc(a.name) + '</button>').join('') + '</div>';
   h += '<div class="seg mb8" role="group" aria-label="Zeitraum"><button aria-pressed="' + (F.range === 'p') + '" data-act="txRange" data-arg="p">Zeitraum</button><button aria-pressed="' + (F.range === 'all') + '" data-act="txRange" data-arg="all">Alle Umsätze</button></div>';
   if (F.range === 'p') h += pswitch();
   if (active.length) h += '<div class="chips mb8">' + active.map(([k, l]) => '<button class="chip" aria-pressed="true" data-act="txClear" data-arg="' + k + '">' + esc(l) + ' ✕</button>').join('') + '</div>';
@@ -2061,8 +2163,8 @@ V.tx = () => {
 };
 const FLAGS = { open: 'Ungeprüft', tax: 'Steuerrelevant', receipt: 'Mit Beleg', note: 'Mit Notiz', manual: 'Von Hand erfasst', excl: 'Nicht mitgezählt' };
 A.txMore = () => { U.txLimit = (U.txLimit || 200) + 200; render(); };
-A.txRange = r => { U.tx.range = r; U.txLimit = 200; render(); };
-A.txClear = k => { U.tx[k] = ''; render(); };
+A.txRange = r => { U.tx.range = r; U.tx.from = ''; U.tx.to = ''; U.txLimit = 200; render(); };
+A.txClear = k => { if (k === 'span') { U.tx.from = ''; U.tx.to = ''; } else U.tx[k] = ''; render(); };
 A.txAcc = id => { U.tx.acc = id; U.txLimit = 200; render(); };
 let txqT;
 CH.txq = (a, el) => { U.tx.q = el.value; clearTimeout(txqT); txqT = setTimeout(() => { const pos = el.selectionStart; render(); const n = $('[data-in="txq"]'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) { /* */ } } }, 200); };
@@ -2081,7 +2183,7 @@ A.txReset = () => { U.tx = { q: '', cat: '', acc: '', kind: '', tag: '', flag: '
 A.exportList = () => { download('umsaetze-' + C.today() + '.csv', C.exportCSV(S, txFiltered()), 'text/csv;charset=utf-8'); };
 function allTags() { const s = new Set(); for (const t of S.tx) for (const g of t.tags || []) s.add(g); return [...s].sort((a, b) => a.localeCompare(b, 'de')); }
 function showTx(filter) { U.tx = Object.assign({ q: '', cat: '', acc: '', kind: '', tag: '', flag: '', range: 'all', merchant: '' }, filter); U.txLimit = 200; closeSheet(true); push('tx'); }
-A.showCat = (id, el) => { const r = el && el.dataset.range; if (r === 'p') { U.pDate = el.dataset.p || U.pDate; } showTx({ cat: id, range: r || 'all' }); };
+A.showCat = (id, el) => { const r = el && el.dataset.range; if (r === 'p') { U.pDate = el.dataset.p || U.pDate; } showTx({ cat: id, range: r === 'p' ? 'p' : 'all', from: r === 'span' ? el.dataset.a : '', to: r === 'span' ? el.dataset.b : '' }); };
 A.showMerchant = m => showTx({ merchant: m });
 A.showTag = t => showTx({ tag: t });
 
@@ -2159,10 +2261,10 @@ function confirmTx(t) {
 function reviewNext() { const R = U.review; while (R.i < R.ids.length) { const x = S.tx.find(y => y.id === R.ids[R.i]); if (x && !x.reviewed) break; R.i++; } }
 function addLearnRule(t) {
   // gleiche Händler künftig so einordnen (Regel aus Korrektur)
-  const ex = S.rules.find(r => r.learned && r.conds.length === 1 && r.conds[0].field === 'merchant' && r.conds[0].value === t.merchant && (r.sign || 0) === Math.sign(t.amount));
+  const ex = S.rules.find(r => r.learned && r.conds[0] && r.conds[0].field === 'merchant' && r.conds[0].value === t.merchant && (r.sign || 0) === Math.sign(t.amount));
   if (ex) { ex.cat = t.cat; return ex; }
   const r = { id: uid('r'), name: t.merchant + ' → ' + catOf(t.cat).name, conds: [{ field: 'merchant', op: 'is', value: t.merchant }], cat: t.cat, learned: true, sign: Math.sign(t.amount) };
-  if (t.amount > 0) r.conds.push({ field: 'amount', op: 'gt', value: '0' }); else r.conds.push({ field: 'amount', op: 'lt', value: '0' });
+  r.conds.push({ field: 'amount', op: t.amount > 0 ? 'in' : 'out', value: '' });
   S.rules.unshift(r); return r;
 }
 A.learnYes = () => {
@@ -2446,7 +2548,7 @@ A.cancelLetter = id => {
 /* ---------- Mehr ---------- */
 V.more = () => {
   const bar = navList();
-  const item = (v, ic, t, d) => '<button class="li" data-act="push" data-arg="' + v + '"><span class="ic" style="color:var(--brand);background:var(--brand-soft)">' + I(ic) + '</span><div class="mid"><div class="t1">' + t + (bar.includes(v) && !wide() ? ' <span class="pill">in der Leiste</span>' : '') + navBadge(v).replace('class="badge"', 'class="badge inline"') + '</div><div class="t2">' + d + '</div></div>' + I('right', 'chev') + '</button>';
+  const item = (v, ic, t, d) => '<button class="li" data-act="push" data-arg="' + v + '"><span class="ic" style="color:var(--brand);background:var(--brand-soft)">' + I(ic) + '</span><div class="mid"><div class="t1">' + t + navBadge(v).replace('class="badge"', 'class="badge inline"') + '</div><div class="t2">' + d + '</div></div>' + I('right', 'chev') + '</button>';
   return '<div class="section-t mt0">Geld & Konten</div><div class="card list" style="padding:4px 16px">' +
     item('accounts', 'bank', 'Konten', 'Gesamtübersicht: Girokonto, Sparkonto, Bargeld, Depot') +
     item('pots', 'piggy', 'Spartöpfe', 'Sparkonto aufteilen: Urlaub, Kfz-Steuer, Kleidung …') +
@@ -2480,25 +2582,55 @@ V.analysis = () => {
 };
 A.anaTab = v => { U.ana = v; render(); };
 const ANA = {};
+// Zeitraum der Auswertung: aktueller Monat (mit Blättern) oder mehrere Monate am Stück
+const SPANS = [['p', 'Monat'], ['3', '3 Monate'], ['6', '6 Monate'], ['12', '12 Monate'], ['y', 'Dieses Jahr'], ['all', 'Gesamt']];
+function anaSpan() {
+  const k = U.anaSpan || 'p'; const ref = C.refDate(S); const r = C.dataRange(S) || [ref, ref];
+  let a, b, label;
+  if (k === 'p') { const p = period(); return { k, a: p.start, b: p.end, months: 1, label: p.label, p }; }
+  if (k === 'y') { a = ref.slice(0, 4) + '-01-01'; b = ref; label = 'Jahr ' + ref.slice(0, 4); }
+  else if (k === 'all') { a = r[0]; b = r[1]; label = 'Gesamter Zeitraum'; }
+  else { const ps = C.periods(S, +k, ref); a = ps[0].start; b = ps[ps.length - 1].end; label = 'Letzte ' + k + ' Monate'; }
+  // Für den Durchschnitt zählen nur Tage, für die es Daten gibt
+  const from = a > r[0] ? a : r[0]; const to = [b, r[1], C.today()].sort()[0];
+  const days = Math.max(1, C.diffDays(from, to) + 1);
+  return { k, a, b, label, months: Math.max(1, days / 30.44), from, to };
+}
+function spanPick() {
+  const sp = anaSpan();
+  return '<div class="span-pick"><label for="ana-span">Zeitraum</label><select class="input" id="ana-span" data-ch="anaSpan">' + SPANS.map(([k, l]) => '<option value="' + k + '"' + (sp.k === k ? ' selected' : '') + '>' + (k === 'p' ? 'Einzelner Monat' : l) + '</option>').join('') + '</select></div>' +
+    (sp.k === 'p' ? pswitch() : '<div class="small muted mb16">' + fmtD(sp.from, 'short') + ' bis ' + fmtD(sp.to) + ' · ' + (sp.months >= 1.5 ? 'rund ' + Math.round(sp.months) + ' Monate Daten' : 'gut 1 Monat Daten') + '</div>');
+}
+A.anaSpan = k => { U.anaSpan = k; render(); };
+CH.anaSpan = (a, el) => A.anaSpan(el.value);
 ANA.cats = () => {
-  const p = period(); const f = C.flows(S, p.start, p.end); const inc = U.anaInc;
-  const col = C.costOfLiving(S, 3);
+  const sp = anaSpan(); const p = sp.p || { start: sp.a, end: sp.b }; const flt = C.scopeF(S);
+  const f = C.flows(S, sp.a, sp.b, flt); const inc = U.anaInc; const multi = sp.k !== 'p';
+  const gross = C.catGross(S, sp.a, sp.b, flt);
+  const col = multi ? null : C.costOfLiving(S, 3, flt);
   const rows = Object.entries(f.tot).map(([id, v]) => ({ c: catOf(id), v: inc ? v : -v })).filter(x => x.v > 0 && (inc ? x.c.group === 'income' : x.c.group !== 'income' && x.c.group !== 'transfer')).sort((a, b) => b.v - a.v);
   const tot = rows.reduce((s, x) => s + x.v, 0);
-  let h = pswitch() + '<div class="seg mb16" role="group"><button aria-pressed="' + !inc + '" data-act="anaInc" data-arg="">Ausgaben</button><button aria-pressed="' + !!inc + '" data-act="anaInc" data-arg="1">Einnahmen</button></div>';
-  if (!rows.length) return h + '<div class="card empty">Keine ' + (inc ? 'Einnahmen' : 'Ausgaben') + ' in diesem Zeitraum.</div>';
-  h += '<div class="card"><div class="donut-wrap" style="justify-content:center">' + donut(rows.map(x => ({ v: x.v, color: x.c.color, label: x.c.name })), 180, C.fmt(tot, { noCents: true }), inc ? 'Einnahmen' : 'Ausgaben') + '</div>';
+  let h = spanPick() + '<div class="seg mb16" role="group"><button aria-pressed="' + !inc + '" data-act="anaInc" data-arg="">Ausgaben</button><button aria-pressed="' + !!inc + '" data-act="anaInc" data-arg="1">Einnahmen</button></div>';
+  const tr = C.transferSums(S, sp.a, sp.b, flt);
+  const trNote = (inc ? tr.in : tr.out) ? '<p class="tiny faint">Nicht mitgezählt: ' + money(inc ? tr.in : tr.out) + ' Umbuchungen ' + (inc ? 'von' : 'auf') + ' eigene Konten (z. B. Sparkonto). Das ist kein ' + (inc ? 'Einkommen' : 'Konsum') + '.</p>' : '';
+  if (!rows.length) return h + '<div class="card empty">Keine ' + (inc ? 'Einnahmen' : 'Ausgaben') + ' in diesem Zeitraum.</div>' + trNote;
+  h += '<div class="card"><div class="donut-wrap" style="justify-content:center">' + donut(rows.map(x => ({ v: x.v, color: x.c.color, label: x.c.name })), 180, C.fmt(tot, { noCents: true }), inc ? 'Einnahmen' : 'Ausgaben') + '</div>' + (multi ? '<div class="small muted mt8" style="text-align:center">Ø <b>' + money(Math.round(tot / sp.months), { noCents: true }) + '</b> pro Monat</div>' : '');
   if (!inc) h += '<div class="flex small muted mt16" style="justify-content:center;gap:16px"><span>Fix ' + money(f.byGroup.fix || 0, { noCents: true }) + '</span><span>Flexibel ' + money(f.byGroup.flex || 0, { noCents: true }) + '</span><span>Selten ' + money(f.byGroup.rare || 0, { noCents: true }) + '</span></div>';
   h += '</div><div class="card list" style="padding:4px 16px">' + rows.map(x => {
     const avg = col ? Math.abs(col.avgCat[x.c.id] || 0) : 0; const d = avg ? (x.v - avg) / avg : 0;
-    return '<button class="li" data-act="showCat" data-arg="' + x.c.id + '" data-range="p" data-p="' + p.start + '">' + catIc(x.c) + '<div class="mid"><div class="t1">' + esc(x.c.name) + '</div><div class="bar mt8" style="height:6px"><i style="width:' + (x.v / rows[0].v * 100) + '%;background:' + x.c.color + '"></i></div></div><div class="end"><div style="font-weight:700">' + money(x.v) + '</div><div class="t2">' + Math.round(x.v / tot * 100) + ' %' + (avg && Math.abs(d) >= 0.15 ? ' · <span class="' + ((d > 0) !== !!inc ? 'neg' : 'pos') + '">' + (d > 0 ? '▲' : '▼') + Math.abs(Math.round(d * 100)) + ' %</span>' : '') + '</div></div></button>';
-  }).join('') + '</div>' + (col ? '<p class="tiny faint">▲▼ im Vergleich zum Durchschnitt der letzten ' + plural(col.periods.length, 'Monat', 'Monate') + '.</p>' : '');
+    // Brutto zeigen, wenn Geld zurückkam (z. B. Miete bezahlt, Anteil der Mitbewohnerin zurück)
+    const g = inc ? gross.out[x.c.id] : gross.in[x.c.id]; const gb = inc ? gross.in[x.c.id] : gross.out[x.c.id];
+    const grossTxt = g ? '<div class="t2">' + (inc ? money(gb) + ' rein, ' + money(g) + ' wieder raus' : money(gb) + ' bezahlt, ' + money(g) + ' zurückbekommen') + '</div>' : '';
+    const sub = multi ? 'Ø ' + money(Math.round(x.v / sp.months), { noCents: true }) + '/Monat' : Math.round(x.v / tot * 100) + ' %' + (avg && Math.abs(d) >= 0.15 ? ' · <span class="' + ((d > 0) !== !!inc ? 'neg' : 'pos') + '">' + (d > 0 ? '▲' : '▼') + Math.abs(Math.round(d * 100)) + ' %</span>' : '');
+    return '<button class="li" data-act="showCat" data-arg="' + x.c.id + '"' + (multi ? ' data-range="span" data-a="' + sp.a + '" data-b="' + sp.b + '"' : ' data-range="p" data-p="' + p.start + '"') + '>' + catIc(x.c) + '<div class="mid"><div class="t1">' + esc(x.c.name) + '</div>' + grossTxt + '<div class="bar mt8" style="height:6px"><i style="width:' + (x.v / rows[0].v * 100) + '%;background:' + x.c.color + '"></i></div></div><div class="end"><div style="font-weight:700">' + money(x.v) + '</div><div class="t2">' + sub + '</div></div></button>';
+  }).join('') + '</div>' + trNote + (col ? '<p class="tiny faint">▲▼ im Vergleich zum Durchschnitt der letzten ' + plural(col.periods.length, 'Monat', 'Monate') + '.</p>' : '') + (sp.k === 'p' && C.dataRange(S) && p.start < C.dataRange(S)[0] ? '<p class="tiny faint">Achtung: Für diesen Monat fehlen Daten vor dem ' + fmtD(C.dataRange(S)[0]) + '.</p>' : '');
   return h;
 };
 A.anaInc = v => { U.anaInc = !!v; render(); };
 ANA.trend = () => {
   const n = U.anaN; const ps = C.periods(S, n, C.refDate(S)); const r = C.dataRange(S);
-  const data = ps.map(p => ({ p, f: C.flows(S, p.start, p.end), partial: r && (p.start < r[0] || p.end > r[1]) }));
+  const flt = C.scopeF(S);
+  const data = ps.map(p => ({ p, f: C.flows(S, p.start, p.end, flt), partial: r && (p.start < r[0] || p.end > r[1]) }));
   const full = data.filter(d => !d.partial);
   const avgOut = full.length ? Math.round(full.reduce((s, d) => s + d.f.out, 0) / full.length) : null;
   const avgIn = full.length ? Math.round(full.reduce((s, d) => s + d.f.income, 0) / full.length) : null;
@@ -2517,20 +2649,20 @@ ANA.trend = () => {
 function shortP(p) { const m = p.label.match(/^(\S+) (\d{4})$/); return m && C.MON.includes(m[1]) ? C.MON3[C.MON.indexOf(m[1])] : fmtD(p.start, 'short'); }
 A.anaN = v => { U.anaN = +v; render(); };
 ANA.merch = () => {
-  const all = U.merchAll; const p = period(); const r = C.dataRange(S) || [C.today(), C.today()];
-  const list = C.merchants(S, all ? r[0] : p.start, all ? r[1] : p.end);
-  let h = '<div class="seg mb8"><button aria-pressed="' + !all + '" data-act="merchAll" data-arg="">Zeitraum</button><button aria-pressed="' + !!all + '" data-act="merchAll" data-arg="1">Gesamt</button></div>' + (all ? '' : pswitch());
+  const sp = anaSpan(); const multi = sp.k !== 'p';
+  const list = C.merchants(S, sp.a, sp.b, C.scopeF(S));
+  let h = spanPick();
   if (!list.length) return h + '<div class="card empty">Keine Ausgaben.</div>';
   const max = list[0].sum;
-  h += '<div class="card list" style="padding:4px 16px">' + list.slice(0, 40).map((m, i) => '<button class="li" data-act="showMerchant" data-arg="' + esc(m.name) + '"><span class="ic" style="font-size:.9rem;font-weight:700;color:var(--text-2)">' + (i + 1) + '</span><div class="mid"><div class="t1">' + esc(m.name) + '</div><div class="t2">' + plural(m.n, 'Einkauf', 'Einkäufe') + ' · Ø ' + money(Math.round(m.sum / m.n)) + ' · ' + esc(catOf(m.cat).name) + '</div><div class="bar mt8" style="height:5px"><i style="width:' + (m.sum / max * 100) + '%"></i></div></div><div class="end"><b>' + money(m.sum) + '</b></div></button>').join('') + '</div>';
+  h += '<div class="card list" style="padding:4px 16px">' + list.slice(0, 40).map((m, i) => '<button class="li" data-act="showMerchant" data-arg="' + esc(m.name) + '"><span class="ic" style="font-size:.9rem;font-weight:700;color:var(--text-2)">' + (i + 1) + '</span><div class="mid"><div class="t1">' + esc(m.name) + '</div><div class="t2">' + plural(m.n, 'Einkauf', 'Einkäufe') + ' · Ø ' + money(Math.round(m.sum / m.n)) + (multi ? ' · ' + money(Math.round(m.sum / sp.months), { noCents: true }) + '/Monat' : '') + ' · ' + esc(catOf(m.cat).name) + '</div><div class="bar mt8" style="height:5px"><i style="width:' + (m.sum / max * 100) + '%"></i></div></div><div class="end"><b>' + money(m.sum) + '</b></div></button>').join('') + '</div>';
   return h;
 };
-A.merchAll = v => { U.merchAll = !!v; render(); };
 ANA.worth = () => {
-  const ser = C.netWorthSeries(S); const nw = C.netWorth(S);
-  let h = '<div class="card"><div class="stat"><span class="tiny muted">Vermögen heute (alle Konten)</span><span class="v">' + money(nw) + '</span></div>';
+  const accs = S.accounts.filter(a => !a.hidden && C.inScope(S, a.id));
+  const ser = C.netWorthSeries(S, accs); const nw = accs.reduce((s, a) => s + C.accBalance(S, a), 0);
+  let h = '<div class="card"><div class="stat"><span class="tiny muted">Vermögen heute (' + (C.scopeIds(S) ? esc(scopeLabel()) : 'alle Konten') + ')</span><span class="v">' + money(nw) + '</span></div>';
   if (ser.length > 1) { const d = ser[ser.length - 1].value - ser[0].value; h += '<div class="mt8">' + line([{ pts: ser.map(x => ({ v: x.value })), color: 'var(--brand)', fill: true }], { labels: ser.map(x => fmtD(x.date, 'mon')), fit: true }) + '</div><p class="small muted mb0">Seit ' + fmtD(ser[0].date, 'month') + ': <b class="' + (d < 0 ? 'neg' : 'pos') + '">' + money(d, { sign: true }) + '</b></p>'; }
-  h += '</div><div class="card list" style="padding:4px 16px">' + S.accounts.filter(a => !a.hidden).map(a => '<button class="li" data-act="accSheet" data-arg="' + a.id + '"><span class="ic" style="background:' + a.color + '22;color:' + a.color + '">' + I(a.type === 'cash' ? 'euro' : a.type === 'asset' ? 'trend' : 'bank') + '</span><div class="mid"><div class="t1">' + esc(a.name) + '</div><div class="t2">' + ACC_T[a.type] + '</div></div><div class="end"><b>' + money(C.accBalance(S, a)) + '</b></div></button>').join('') + '</div><p class="tiny faint">Sparkonto oder Depot ergänzt du unter Mehr → Konten. Ihren Wert trägst du dort von Zeit zu Zeit ein.</p>';
+  h += '</div><div class="card list" style="padding:4px 16px">' + accs.map(a => '<button class="li" data-act="accSheet" data-arg="' + a.id + '"><span class="ic" style="background:' + a.color + '22;color:' + a.color + '">' + I(a.type === 'cash' ? 'euro' : a.type === 'asset' ? 'trend' : 'bank') + '</span><div class="mid"><div class="t1">' + esc(a.name) + '</div><div class="t2">' + ACC_T[a.type] + '</div></div><div class="end"><b>' + money(C.accBalance(S, a)) + '</b></div></button>').join('') + '</div><p class="tiny faint">Sparkonto oder Depot ergänzt du unter Mehr → Konten. Ihren Wert trägst du dort von Zeit zu Zeit ein.</p>';
   return h;
 };
 ANA.reports = () => {
@@ -2585,9 +2717,10 @@ A.reportSheet = id => {
 
 /* Monatsrückblick */
 A.reviewSheet = start => {
-  const p = C.periodOf(S, start); const rv = C.review(S, p);
+  const p = C.periodOf(S, start); const rv = C.review(S, p, C.scopeF(S)); const tr = C.transferSums(S, p.start, p.end, C.scopeF(S));
   let h = '<div class="stats mb16"><div class="stat"><span class="tiny muted">Einnahmen</span><span class="v pos">' + money(rv.f.income) + '</span></div><div class="stat"><span class="tiny muted">Ausgaben</span><span class="v">' + money(rv.f.out) + '</span></div><div class="stat"><span class="tiny muted">Übrig</span><span class="v ' + (rv.f.net < 0 ? 'neg' : 'pos') + '">' + money(rv.f.net, { sign: true }) + '</span></div></div>';
   if (rv.rate != null) h += '<p class="mt0">' + (rv.rate >= 0 ? 'Du hast <b>' + Math.round(rv.rate * 100) + ' %</b> deiner Einnahmen nicht ausgegeben.' : 'Du hast <b>' + money(-rv.f.net) + '</b> mehr ausgegeben als eingenommen.') + (rv.avgOut != null ? ' Deine Ausgaben lagen ' + (rv.f.out > rv.avgOut ? '<b class="neg">' + money(rv.f.out - rv.avgOut) + ' über</b>' : '<b class="pos">' + money(rv.avgOut - rv.f.out) + ' unter</b>') + ' deinem Schnitt.' : '') + '</p>';
+  if (tr.out) h += '<p class="small muted">Außerdem ' + money(tr.out) + ' auf eigene Konten umgebucht (z. B. Sparkonto). Das zählt nicht als Ausgabe.</p>';
   if (rv.changes.length) h += '<div class="section-t">Auffällig</div>' + rv.changes.map(x => '<div class="note ' + (x.d > 0 ? 'warn' : 'ok') + '"><span class="n-ic">' + esc(x.cat.emoji) + '</span><div class="mid"><b>' + esc(x.cat.name) + '</b>: ' + money(x.now) + ' statt Ø ' + money(x.avg) + '</div></div>').join('');
   if (rv.cats.length) h += '<div class="section-t">Größte Kategorien</div>' + rv.cats.slice(0, 5).map(x => '<div class="flex small" style="padding:4px 0"><span>' + esc(x.cat.emoji) + '</span><span class="flex1">' + esc(x.cat.name) + '</span>' + money(x.v) + '</div>').join('');
   if (rv.biggest.length) h += '<div class="section-t">Größte Einzelausgaben</div><div class="list">' + rv.biggest.map(txRow).join('') + '</div>';
@@ -2597,7 +2730,7 @@ A.reviewSheet = start => {
 
 /* ---------- Was kostet mein Leben ---------- */
 V.col = () => {
-  const col = C.costOfLiving(S, 6);
+  const col = C.costOfLiving(S, 6, C.scopeF(S));
   if (!col) return '<div class="card empty">Dafür brauche ich mindestens einen vollständigen Monat an Daten.</div>';
   const rows = Object.entries(col.avgCat).map(([id, v]) => ({ c: catOf(id), v: -v })).filter(x => x.v > 0 && x.c.group !== 'income' && x.c.group !== 'transfer').sort((a, b) => b.v - a.v);
   let h = '<div class="hero"><span class="accent-bar"></span><div class="lbl">Dein Leben kostet im Schnitt</div><div class="big">' + money(col.total) + '</div><div class="sub">pro Monat, also etwa <b>' + money(col.perDay) + '</b> am Tag</div></div>';
@@ -2614,8 +2747,8 @@ V.calendar = () => {
   const [y, mo] = m.split('-').map(Number); const first = C.iso(y, mo, 1); const last = C.iso(y, mo, C.dim(y, mo));
   const startW = (C.weekday(first) + 6) % 7; const gridStart = C.addDays(first, -startW);
   const dataEnd = C.bankEnd(S) || ref;
-  const booked = {}; for (const t of S.tx) if (t.date >= gridStart && t.date <= C.addDays(last, 7) && !t.excluded) (booked[t.date] = booked[t.date] || []).push(t);
-  const exp = {}; for (const o of C.openDue(S, C.addDays(dataEnd, 1) > gridStart ? C.addDays(dataEnd, 1) : gridStart, C.addDays(last, 7), r => !(r.transfer && !C.spendAcc(S, r.acc)))) (exp[o.date] = exp[o.date] || []).push(o);
+  const booked = {}; for (const t of S.tx) if (t.date >= gridStart && t.date <= C.addDays(last, 7) && !t.excluded && C.inScope(S, t.acc)) (booked[t.date] = booked[t.date] || []).push(t);
+  const exp = {}; for (const o of C.openDue(S, C.addDays(dataEnd, 1) > gridStart ? C.addDays(dataEnd, 1) : gridStart, C.addDays(last, 7), r => !(r.transfer && !C.spendAcc(S, r.acc)) && C.inScope(S, r.acc))) (exp[o.date] = exp[o.date] || []).push(o);
   let h = '<div class="pswitch"><button class="icon-btn" data-act="calM" data-arg="-1" aria-label="Vormonat">' + I('left') + '</button><div class="mid"><b>' + C.MON[mo - 1] + ' ' + y + '</b><span>gebucht und erwartet</span></div><button class="icon-btn" data-act="calM" data-arg="1" aria-label="Nächster Monat">' + I('right') + '</button></div>';
   h += '<div class="card"><div class="cal">' + ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => '<div class="wd">' + d + '</div>').join('');
   for (let i = 0; i < 42; i++) {
@@ -2892,7 +3025,7 @@ A.cashCount = id => {
 /* ---------- Spartöpfe ---------- */
 function potRow(a, p) {
   const pct = p.target ? Math.min(1, (p.amount || 0) / p.target) : 0;
-  const sub = p.target ? 'Ziel ' + C.fmt(p.target, { noCents: true }) + ' · ' + Math.round(pct * 100) + ' %' : p.updated ? 'eingetragen ' + rel(p.updated) : '';
+  const sub = (p.target ? 'Ziel ' + C.fmt(p.target, { noCents: true }) + ' · ' + Math.round(pct * 100) + ' %' : p.updated ? 'eingetragen ' + rel(p.updated) : '') + (p.rate ? (p.target || p.updated ? ' · ' : '') + '+' + C.fmt(p.rate, { noCents: p.rate % 100 === 0 }) : '');
   return '<button class="pot" data-act="potSheet" data-arg="' + a.id + ':' + p.id + '"><span class="em">' + esc(p.emoji || '🫙') + '</span><div class="mid"><div class="nm">' + esc(p.name) + '</div><div class="tiny muted">' + esc(sub) + '</div>' + (p.target ? '<div class="bar"><i style="width:' + pct * 100 + '%;background:' + (pct >= 1 ? 'var(--pos)' : a.color) + '"></i></div>' : '') + '</div><div class="amt-r">' + money(p.amount || 0) + '</div></button>';
 }
 function potsCard(a, withHead) {
@@ -2901,7 +3034,9 @@ function potsCard(a, withHead) {
   if (!pots.length) h += '<p class="muted small mt0">Teil dein Sparkonto in Töpfe auf, zum Beispiel Urlaub, Kfz-Steuer oder Kleidung. Wie viel in jedem Topf ist, trägst du selbst ein.</p>';
   else h += '<div class="pot-grid">' + pots.map(p => potRow(a, p)).join('') + '</div>';
   if (a.type === 'savings' && pots.length) h += pi.free >= 0 ? '<div class="pot-free"><span>Noch keinem Topf zugeordnet</span><b class="num">' + money(pi.free) + '</b></div>' : '<div class="pot-free neg"><span>Du hast <b>' + money(-pi.free) + '</b> mehr verteilt, als laut Bank auf dem Konto ist.</span></div>';
-  h += '<div class="row-btns mt16"><button class="btn small primary" data-act="potNew" data-arg="' + a.id + '">' + I('plus') + 'Topf</button>' + (pots.length > 1 ? '<button class="btn small" data-act="potsAll" data-arg="' + a.id + '">Alle Stände eintragen</button>' : '') + '</div></div>';
+  const rates = pots.reduce((s, p) => s + (p.rate || 0), 0);
+  if (pots.length) h += '<button class="btn primary block mt16" data-act="potsPay" data-arg="' + a.id + '">' + I('piggy') + (rates ? 'Sparraten einzahlen (' + money(rates) + ')' : 'Geld auf Töpfe verteilen') + '</button>';
+  h += '<div class="row-btns mt8"><button class="btn small" data-act="potNew" data-arg="' + a.id + '">' + I('plus') + 'Topf</button>' + (pots.length > 1 ? '<button class="btn small" data-act="potsAll" data-arg="' + a.id + '">Alle Stände eintragen</button>' : '') + '</div></div>';
   return h;
 }
 V.pots = () => {
@@ -2923,7 +3058,9 @@ function potEdit(a, p) {
   const isNew = !p.id;
   let h = '<div class="inrow"><div class="field fix" style="width:72px"><label for="pt-e">Emoji</label><input class="input" id="pt-e" value="' + esc(p.emoji || '') + '" placeholder="🫙" maxlength="4" style="text-align:center;font-size:1.3rem"></div><div class="field"><label for="pt-n">Name</label><input class="input" id="pt-n" value="' + esc(p.name) + '" placeholder="z. B. Urlaub"></div></div>' +
     '<div class="chips mb16" aria-label="Emoji wählen">' + POT_EMOJI.map(e => '<button type="button" class="chip" data-potem="' + e + '">' + e + '</button>').join('') + '</div>' +
-    '<div class="inrow"><div class="field"><label for="pt-a">Wie viel ist drin?</label><input class="input" id="pt-a" inputmode="decimal" value="' + (isNew ? '' : inputVal(p.amount)) + '" placeholder="0,00"></div><div class="field"><label for="pt-t">Ziel (optional)</label><input class="input" id="pt-t" inputmode="decimal" value="' + (p.target ? inputVal(p.target) : '') + '" placeholder="z. B. 600"></div></div>';
+    '<div class="inrow"><div class="field"><label for="pt-a">Wie viel ist drin?</label><input class="input" id="pt-a" inputmode="decimal" value="' + (isNew ? '' : inputVal(p.amount)) + '" placeholder="0,00"></div><div class="field"><label for="pt-t">Ziel (optional)</label><input class="input" id="pt-t" inputmode="decimal" value="' + (p.target ? inputVal(p.target) : '') + '" placeholder="z. B. 600"></div></div>' +
+    '<div class="field"><label for="pt-r">Sparrate (optional)</label><input class="input" id="pt-r" inputmode="decimal" value="' + (p.rate ? inputVal(p.rate) : '') + '" placeholder="z. B. 50"><div class="tiny faint mt4">Dieser Betrag kommt dazu, wenn du auf „Sparraten einzahlen“ tippst.</div></div>' +
+    (isNew ? '' : '<div class="lbl-s mb8">Schnell ändern</div><div class="inrow"><input class="input" id="pt-m" inputmode="decimal" placeholder="Betrag" aria-label="Betrag"><button class="btn fix" data-act="potMove" data-arg="' + a.id + ':' + p.id + ':1">+ Rein</button><button class="btn fix" data-act="potMove" data-arg="' + a.id + ':' + p.id + ':-1">− Raus</button></div>');
   if (isNew && a.type === 'asset' && !(a.pots || []).length && (a.history || []).length) h += '<p class="tiny warn mt0">Ab dem ersten Topf ergibt sich der Kontostand aus der Summe der Töpfe (bisher ' + money(C.accBalance(S, a)) + ').</p>';
   if (!isNew && (p.hist || []).length > 1) h += '<div class="section-t">Verlauf</div><div class="list">' + p.hist.slice().sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 6).map((x, i, arr) => '<div class="li"><div class="mid"><div class="t1">' + fmtD(x.date) + '</div></div><div class="end">' + money(x.value) + (arr[i + 1] ? '<div class="t2">' + C.fmt(x.value - arr[i + 1].value, { sign: true }) + '</div>' : '') + '</div></div>').join('') + '</div>';
   if (!isNew) h += '<button class="btn small danger mt16" data-act="potDel" data-arg="' + a.id + ':' + p.id + '">Topf löschen</button>';
@@ -2932,7 +3069,7 @@ function potEdit(a, p) {
   $('#pt-ok').onclick = () => {
     const name = $('#pt-n').value.trim(); if (!name) { toast('Bitte einen Namen eingeben'); $('#pt-n').focus(); return; }
     const amount = centsFromInput($('#pt-a').value); const target = Math.abs(centsFromInput($('#pt-t').value));
-    Object.assign(p, { name, emoji: $('#pt-e').value.trim() || '🫙', target });
+    Object.assign(p, { name, emoji: $('#pt-e').value.trim() || '🫙', target, rate: Math.abs(centsFromInput($('#pt-r').value)) });
     setPot(p, amount);
     if (isNew) { p.id = uid('p'); a.pots = a.pots || []; a.pots.push(p); }
     save(); closeSheet(); render(); toast(isNew ? 'Topf angelegt' : 'Gespeichert');
@@ -2943,6 +3080,25 @@ function setPot(p, amount) {
   if (amount !== p.amount || !p.hist.length) { const d = C.today(); p.hist = p.hist.filter(x => x.date !== d); p.hist.push({ date: d, value: amount }); p.updated = d; }
   p.amount = amount;
 }
+A.potMove = arg => {
+  const [aid, pid, dir] = arg.split(':'); const a = accOf(aid); const p = a.pots.find(x => x.id === pid);
+  const v = Math.abs(centsFromInput($('#pt-m').value)); if (!v) { toast('Bitte einen Betrag eingeben'); $('#pt-m').focus(); return; }
+  const before = p.amount || 0; setPot(p, before + v * +dir); save(); render(); potEdit(a, p);
+  toast((+dir > 0 ? '+' : '−') + C.fmt(v) + ' bei ' + p.name, 'Rückgängig', () => { setPot(p, before); save(); render(); closeSheet(true); });
+};
+A.potsPay = id => {
+  const a = accOf(id);
+  sheet('Auf Töpfe verteilen', '<p class="mt0 small muted">Vorausgefüllt sind deine Sparraten. Du kannst sie hier für dieses Mal ändern.</p>' + a.pots.map(p => '<div class="inrow" style="align-items:center"><div class="flex1 small"><b>' + esc((p.emoji || '🫙') + ' ' + p.name) + '</b><div class="tiny muted">jetzt ' + money(p.amount || 0) + '</div></div><input class="input fix" style="width:110px;text-align:right" id="pp-' + p.id + '" inputmode="decimal" value="' + (p.rate ? inputVal(p.rate) : '') + '" placeholder="0,00" aria-label="Betrag für ' + esc(p.name) + '"></div>').join('<div class="hr" style="margin:8px 0"></div>') +
+    '<p class="tiny faint mt16 mb0">Die Töpfe sind deine Einteilung in der App. Das Geld selbst überweist du wie gewohnt in deiner Banking-App.</p>',
+    '<button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn primary" id="pp-ok">Einzahlen</button>');
+  $('#pp-ok').onclick = () => {
+    const before = a.pots.map(p => [p, p.amount || 0, (p.hist || []).slice(), p.updated]); let sum = 0;
+    for (const p of a.pots) { const v = Math.abs(centsFromInput($('#pp-' + p.id).value)); if (v) { setPot(p, (p.amount || 0) + v); sum += v; } }
+    if (!sum) { toast('Bitte mindestens einen Betrag eingeben'); return; }
+    save(); closeSheet(); render();
+    toast(C.fmt(sum) + ' auf Töpfe verteilt', 'Rückgängig', () => { for (const [p, amt, hist, upd] of before) { p.amount = amt; p.hist = hist; p.updated = upd; } save(); render(); });
+  };
+};
 A.potDel = arg => { const [aid, pid] = arg.split(':'); const a = accOf(aid); confirmSheet('Topf löschen?', 'Der Topf verschwindet. Das Geld auf dem Konto bleibt natürlich, es ist dann nur keinem Topf mehr zugeordnet.', 'Löschen', () => { a.pots = a.pots.filter(p => p.id !== pid); save(); render(); toast('Topf gelöscht'); }, true); };
 A.potsAll = id => {
   const a = accOf(id);
@@ -3002,11 +3158,11 @@ A.catSheet = id => {
 };
 
 /* ---------- Regeln ---------- */
-function ruleDesc(r) { return (r.conds || []).map(c => C.FIELDS[c.field] + ' ' + C.OPS[c.op] + ' „' + c.value + '“').join(' und '); }
+function ruleDesc(r) { return (r.conds || []).map(c => C.FIELDS[c.field] + ' ' + C.OPS[c.op] + (noVal(c) ? '' : ' „' + c.value + (c.field === 'amount' ? ' €' : '') + '“')).join(' und '); }
 function ruleAct(r) { const a = []; if (r.cat) a.push(catOf(r.cat).emoji + ' ' + catOf(r.cat).name); if (r.transfer) a.push('Umbuchung'); if (r.tag) a.push('#' + r.tag); if (r.tax) a.push('steuerrelevant'); return a.join(', '); }
 V.rules = () => {
   const own = S.rules.filter(r => !r.learned), learned = S.rules.filter(r => r.learned);
-  const row = r => { const n = S.tx.filter(t => C.ruleMatches(r, t)).length; return '<div class="li"><button class="mid" style="border:0;background:none;text-align:left;padding:0" data-act="ruleSheet" data-arg="' + r.id + '"><div class="t1">' + esc(r.name || ruleDesc(r)) + '</div><div class="t2">→ ' + esc(ruleAct(r)) + ' · ' + plural(n, 'Treffer', 'Treffer') + '</div></button><input type="checkbox" class="tog" data-ch="ruleOn" data-arg="' + r.id + '"' + (r.off ? '' : ' checked') + ' aria-label="Regel aktiv"></div>'; };
+  const row = r => { const n = S.tx.filter(t => C.ruleMatches(r, t, S)).length; return '<div class="li"><button class="mid" style="border:0;background:none;text-align:left;padding:0" data-act="ruleSheet" data-arg="' + r.id + '"><div class="t1">' + esc(r.name || ruleDesc(r)) + '</div><div class="t2">→ ' + esc(ruleAct(r)) + ' · ' + plural(n, 'Treffer', 'Treffer') + '</div></button><input type="checkbox" class="tog" data-ch="ruleOn" data-arg="' + r.id + '"' + (r.off ? '' : ' checked') + ' aria-label="Regel aktiv"></div>'; };
   let h = '<p class="small muted mt0">Regeln ordnen Buchungen automatisch ein. Sie gelten von oben nach unten, die erste passende gewinnt. Deine eigenen Korrekturen bleiben immer.</p>';
   h += '<div class="section-t">Deine Regeln</div><div class="card list" style="padding:4px 16px">' + (own.length ? own.map(row).join('') : '<p class="small muted">Noch keine eigenen Regeln.</p>') + '</div><button class="btn primary block" data-act="ruleSheet">' + I('plus') + 'Regel anlegen</button>';
   if (learned.length) h += '<div class="section-t">Gelernt aus deinen Korrekturen</div><div class="card list" style="padding:4px 16px">' + learned.map(row).join('') + '</div>';
@@ -3018,9 +3174,9 @@ A.ruleSheet = id => ruleEdit(JSON.parse(JSON.stringify(S.rules.find(x => x.id ==
 function ruleEdit(r) {
   U.ruleDraft = r;
   const body = () => {
-    const matches = S.tx.filter(t => C.ruleMatches(r, t));
+    const matches = S.tx.filter(t => C.ruleMatches(r, t, S));
     return '<div class="field"><label for="ru-n">Name (optional)</label><input class="input" id="ru-n" value="' + esc(r.name || '') + '" data-ch="ruN"></div><div class="lbl-s mb8">Wenn alle Bedingungen passen …</div>' +
-      r.conds.map((c, i) => '<div class="card flat" style="padding:10px"><div class="inrow"><select class="input" data-ch="ruC" data-arg="' + i + ':field">' + Object.entries(C.FIELDS).map(([k, l]) => '<option value="' + k + '"' + (c.field === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select><select class="input" data-ch="ruC" data-arg="' + i + ':op">' + Object.entries(C.OPS).filter(([k]) => c.field === 'amount' ? ['is', 'gt', 'lt'].includes(k) : !['gt', 'lt'].includes(k)).map(([k, l]) => '<option value="' + k + '"' + (c.op === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div><div class="inrow mt8"><input class="input" value="' + esc(c.value) + '" data-ch="ruC" data-arg="' + i + ':value" placeholder="' + (c.field === 'amount' ? 'z. B. -50' : 'Text') + '">' + (r.conds.length > 1 ? '<button class="icon-btn fix" data-act="ruDel" data-arg="' + i + '" aria-label="Bedingung entfernen">' + I('trash') + '</button>' : '') + '</div></div>').join('') +
+      r.conds.map((c, i) => '<div class="card flat" style="padding:10px"><div class="inrow"><select class="input" data-ch="ruC" data-arg="' + i + ':field">' + Object.entries(C.FIELDS).map(([k, l]) => '<option value="' + k + '"' + (c.field === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select><select class="input" data-ch="ruC" data-arg="' + i + ':op">' + Object.entries(C.OPS).filter(([k]) => opsFor(c.field).includes(k)).map(([k, l]) => '<option value="' + k + '"' + (c.op === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div><div class="inrow mt8">' + condValue(c, i) + (r.conds.length > 1 ? '<button class="icon-btn fix" data-act="ruDel" data-arg="' + i + '" aria-label="Bedingung entfernen">' + I('trash') + '</button>' : '') + '</div></div>').join('') +
       '<button class="link small mb16" data-act="ruAdd">+ Bedingung</button><div class="lbl-s mb8">… dann</div><div class="field"><label for="ru-cat">Kategorie</label><select class="input" id="ru-cat" data-ch="ruCat"><option value="">nicht ändern</option>' + S.cats.map(c => '<option value="' + c.id + '"' + (r.cat === c.id ? ' selected' : '') + '>' + esc(c.emoji + ' ' + c.name) + '</option>').join('') + '</select></div><div class="field"><label for="ru-tag">Sammlung hinzufügen</label><input class="input" id="ru-tag" value="' + esc(r.tag || '') + '" data-ch="ruTag" placeholder="optional"></div>' +
       sw('ruFlag', 'tax', 'Als steuerrelevant markieren', '', r.tax) + sw('ruFlag', 'transfer', 'Als Umbuchung behandeln', '', r.transfer) +
       '<div class="note mt16"><span class="n-ic">🔎</span><div class="mid">Passt auf <b>' + plural(matches.length, 'Buchung', 'Buchungen') + '</b>' + (matches.length ? ': ' + esc(matches.slice(0, 3).map(t => t.merchant + ' ' + C.fmt(t.amount)).join(', ')) + (matches.length > 3 ? ' …' : '') : '') + '</div></div>' + (r.id ? '<button class="btn small danger mt8" data-act="ruRemove">Regel löschen</button>' : '');
@@ -3028,9 +3184,17 @@ function ruleEdit(r) {
   U.ruleBody = body;
   sheet(r.id ? 'Regel bearbeiten' : 'Neue Regel', body(), '<button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn primary" data-act="ruSave">Speichern & anwenden</button>');
 }
+function opsFor(f) { return f === 'amount' ? ['is', 'isnot', 'gt', 'lt', 'out', 'in'] : Object.keys(C.OPS).filter(k => !['gt', 'lt', 'out', 'in'].includes(k)); }
+function noVal(c) { return c.op === 'out' || c.op === 'in'; }
+function condValue(c, i) {
+  if (noVal(c)) return '<div class="small muted flex1" style="padding:8px 2px">kein Wert nötig</div>';
+  if (c.field === 'acc' && S.accounts.length) return '<select class="input" data-ch="ruC" data-arg="' + i + ':value"><option value="">Konto wählen</option>' + S.accounts.map(a => '<option value="' + esc(a.name) + '"' + (c.value === a.name ? ' selected' : '') + '>' + esc(a.name) + '</option>').join('') + '</select>';
+  return '<input class="input" value="' + esc(c.value) + '" data-ch="ruC" data-arg="' + i + ':value" placeholder="' + (c.field === 'amount' ? 'Betrag in €, z. B. 50' : 'Text') + '">';
+}
 function ruRe() { sheetBody(U.ruleBody()); }
 CH.ruN = (a, el) => { U.ruleDraft.name = el.value; };
-CH.ruC = (a, el) => { const [i, k] = a.split(':'); const c = U.ruleDraft.conds[+i]; c[k] = el.value; if (k === 'field') c.op = el.value === 'amount' ? 'lt' : 'contains'; ruRe(); };
+CH.ruC = (a, el) => { const [i, k] = a.split(':'); const c = U.ruleDraft.conds[+i]; const prev = c[k]; c[k] = el.value; if (k === 'field') { c.op = el.value === 'amount' ? 'gt' : el.value === 'acc' ? 'is' : 'contains'; if (['acc', 'amount'].includes(prev) || ['acc', 'amount'].includes(el.value)) c.value = ''; } if (k !== 'value' || c.field === 'acc') ruRe(); else ruLive(); };
+function ruLive() { const el = document.querySelector('.sheet .note .mid'); if (!el) return; const m = S.tx.filter(t => C.ruleMatches(U.ruleDraft, t, S)); el.innerHTML = 'Passt auf <b>' + plural(m.length, 'Buchung', 'Buchungen') + '</b>' + (m.length ? ': ' + esc(m.slice(0, 3).map(t => t.merchant + ' ' + C.fmt(t.amount)).join(', ')) + (m.length > 3 ? ' …' : '') : ''); }
 CH.ruCat = (a, el) => { U.ruleDraft.cat = el.value; };
 CH.ruTag = (a, el) => { U.ruleDraft.tag = el.value.trim().replace(/^#/, ''); };
 CH.ruFlag = (k, el) => { U.ruleDraft[k] = el.checked; };
@@ -3038,11 +3202,11 @@ A.ruAdd = () => { U.ruleDraft.conds.push({ field: 'purpose', op: 'contains', val
 A.ruDel = i => { U.ruleDraft.conds.splice(+i, 1); ruRe(); };
 A.ruRemove = () => { const id = U.ruleDraft.id; S.rules = S.rules.filter(r => r.id !== id); for (const t of S.tx) if (t.catSrc === 'rule') C.classify(S, t, true); closeSheet(); afterChange(); toast('Regel gelöscht'); };
 A.ruSave = () => {
-  const r = U.ruleDraft; r.conds = r.conds.filter(c => String(c.value).trim() !== '');
+  const r = U.ruleDraft; r.conds = r.conds.filter(c => noVal(c) || String(c.value).trim() !== '');
   if (!r.conds.length) { toast('Bitte mindestens eine Bedingung ausfüllen'); return; }
   if (!r.cat && !r.tag && !r.tax && !r.transfer) { toast('Bitte wähle, was die Regel tun soll'); return; }
   if (!r.id) { r.id = uid('r'); const i = S.rules.findIndex(x => x.learned); if (i < 0) S.rules.push(r); else S.rules.splice(i, 0, r); } else { const i = S.rules.findIndex(x => x.id === r.id); S.rules[i] = r; }
-  let n = 0; for (const t of S.tx) { if (C.ruleMatches(r, t)) { if (t.catSrc !== 'user') C.classify(S, t, true); else { if (r.tag) { t.tags = t.tags || []; if (!t.tags.includes(r.tag)) t.tags.push(r.tag); } if (r.tax) t.tax = true; } n++; } }
+  let n = 0; for (const t of S.tx) { if (C.ruleMatches(r, t, S)) { if (t.catSrc !== 'user') C.classify(S, t, true); else { if (r.tag) { t.tags = t.tags || []; if (!t.tags.includes(r.tag)) t.tags.push(r.tag); } if (r.tax) t.tax = true; } n++; } }
   closeSheet(); afterChange(); toast('Regel gespeichert, ' + plural(n, 'Buchung', 'Buchungen') + ' angepasst');
 };
 
@@ -3062,9 +3226,21 @@ CH.importFile = async (a, el) => {
     try { const txt = decodeText(await readFile(f)); res.push(Object.assign({ file: f.name }, importText(txt, f.name))); } catch (e) { res.push({ file: f.name, err: e.message }); }
   }
   el.value = '';
-  U.lastImport = '<div class="card" style="border-left:4px solid var(--pos)">' + res.map(r => r.err ? '<p class="neg mt0"><b>' + esc(r.file) + '</b>: ' + esc(r.err) + '</p>' : '<h2 class="mb8">' + I('check', '') + ' ' + plural(r.added, 'neue Buchung', 'neue Buchungen') + '</h2><p class="small muted mt0">' + esc(r.file) + (r.range ? ' · ' + fmtD(r.range[0]) + ' bis ' + fmtD(r.range[1]) : '') + (r.dup ? ' · ' + r.dup + ' schon vorhanden' : '') + (r.added ? ' · ' + (r.open ? r.open + ' zum Prüfen, der Rest ist eindeutig zugeordnet' : 'alle eindeutig zugeordnet') : '') + (r.newRec ? ' · ' + plural(r.newRec, 'Vertrag', 'Verträge') + ' neu erkannt' : '') + (r.merged ? ' · ' + r.merged + ' von Hand erfasste Buchungen zusammengeführt' : '') + '</p>').join('') +
+  U.lastImport = '<div class="card" style="border-left:4px solid var(--pos)">' + res.map(r => r.err ? '<p class="neg mt0"><b>' + esc(r.file) + '</b>: ' + esc(r.err) + '</p>' : '<h2 class="mb8">' + I('check', '') + ' ' + plural(r.added, 'neue Buchung', 'neue Buchungen') + '</h2><p class="small muted mt0">' + esc(r.file) + (r.range ? ' · ' + fmtD(r.range[0]) + ' bis ' + fmtD(r.range[1]) : '') + (r.dup ? ' · ' + r.dup + ' schon vorhanden' : '') + (r.added ? ' · ' + (r.open ? r.open + ' zum Prüfen, der Rest ist eindeutig zugeordnet' : 'alle eindeutig zugeordnet') : '') + (r.newRec ? ' · ' + plural(r.newRec, 'Vertrag', 'Verträge') + ' neu erkannt' : '') + (r.merged ? ' · ' + r.merged + ' von Hand erfasste Buchungen zusammengeführt' : '') + '</p>' + newAccAsk(r)).join('') +
     '<div class="row-btns">' + (S.tx.some(t => !t.reviewed) ? '<button class="btn small primary" data-act="startReview">Buchungen prüfen</button>' : '') + (S.recurring.some(r => r.status === 'neu') ? '<button class="btn small" data-act="go" data-arg="rec">Verträge ansehen</button>' : '') + '<button class="btn small" data-act="go" data-arg="start">Zur Übersicht</button></div></div>';
   render();
+};
+// Neues Konto aus der CSV: kurz fragen, ob es ein Giro- oder ein Sparkonto ist
+function newAccAsk(r) {
+  if (!r.newAccs || !r.newAccs.length || S.accounts.length < 2) return '';
+  return r.newAccs.map(accOf).filter(Boolean).map(a => '<div class="note" data-newacc="' + a.id + '"><span class="n-ic">🏦</span><div class="mid"><b>Neues Konto: ' + esc(a.name) + '</b><div class="small muted">Was ist das für ein Konto? Sparkonten zählen nicht für „frei verfügbar“ und die Prognose.</div><div class="row-btns mt8"><button class="btn small' + (a.type === 'giro' ? ' primary' : '') + '" data-act="accTypeSet" data-arg="' + a.id + ':giro">Girokonto</button><button class="btn small' + (a.type === 'savings' ? ' primary' : '') + '" data-act="accTypeSet" data-arg="' + a.id + ':savings">Sparkonto</button></div></div></div>').join('');
+}
+A.accTypeSet = arg => {
+  const [id, type] = arg.split(':'); const a = accOf(id); if (!a) return;
+  a.type = type; a.inForecast = type === 'giro'; if (type === 'savings' && a.color !== '#1f7a4d') a.color = '#1f7a4d';
+  // Knöpfe im Import-Ergebnis aktualisieren
+  U.lastImport = (U.lastImport || '').replace(new RegExp('class="btn small( primary)?" data-act="accTypeSet" data-arg="' + id + ':(giro|savings)"', 'g'), (m, p1, t) => 'class="btn small' + (t === type ? ' primary' : '') + '" data-act="accTypeSet" data-arg="' + id + ':' + t + '"');
+  afterChange(); toast(a.name + ' ist jetzt ' + (type === 'giro' ? 'ein Girokonto' : 'ein Sparkonto'));
 };
 function importText(txt, name) {
   const parsed = C.importCSV(txt, { fileName: name });
@@ -3089,7 +3265,7 @@ function importText(txt, name) {
 V.data = () => {
   const last = S.settings.lastBackup;
   return '<div class="card"><div class="card-h"><h2>Für Excel</h2></div><p class="small muted mt0">Alle Buchungen als CSV mit Kategorien, Sammlungen und Notizen. Excel und Numbers öffnen die Datei direkt.</p><button class="btn block" data-act="exportAll">' + I('download') + 'Alle Buchungen exportieren</button></div>' +
-    '<div class="card"><div class="card-h"><h2>Backup</h2>' + (last ? '<span class="pill">zuletzt ' + fmtD(last) + '</span>' : '<span class="pill warn">noch nie</span>') + '</div><p class="small muted mt0">Deine Daten liegen nur auf diesem Gerät. Ein Backup sichert alles (Buchungen, Kategorien, Regeln, Verträge, Ziele, Belege) in einer Datei. Damit kannst du auch auf ein anderes Gerät umziehen, zum Beispiel vom iPhone auf den Mac.</p><div class="row-btns"><button class="btn primary" data-act="backup">' + I('download') + 'Backup speichern</button><label class="btn">' + I('upload') + 'Backup laden<input type="file" accept=".json,application/json" class="sr" data-ch="restore"></label></div><button class="link small mt8" data-act="backupCopy">Backup stattdessen als Text kopieren</button></div>' +
+    '<div class="card"><div class="card-h"><h2>Backup</h2>' + (last ? '<span class="pill">zuletzt ' + fmtD(last) + '</span>' : '<span class="pill warn">noch nie</span>') + '</div><p class="small muted mt0">Deine Daten liegen nur auf diesem Gerät. Ein Backup sichert alles (Buchungen, Kategorien, Regeln, Verträge, Ziele, Belege) in einer Datei. Damit kannst du auch auf ein anderes Gerät umziehen, zum Beispiel vom iPhone auf den Mac.</p><div class="row-btns"><button class="btn primary" data-act="backup">' + I('download') + 'Backup speichern</button><label class="btn">' + I('upload') + 'Backup laden<input type="file" accept=".json,application/json" class="sr" data-ch="restore"></label></div><div class="flex mt8" style="gap:16px;flex-wrap:wrap"><button class="link small" data-act="backupCopy">Als Text kopieren</button><button class="link small" data-act="backupPaste">Text-Backup einfügen</button></div></div>' +
     '<div class="card"><div class="card-h"><h2>Speicher</h2></div><p class="small muted mt0" id="persist-info">' + (storageOK ? 'Gespeichert im Browser-Speicher dieses Geräts.' : '<span class="neg">Der Browser-Speicher ist hier nicht verfügbar. Änderungen gehen beim Schließen verloren.</span>') + '</p><button class="btn small danger" data-act="wipe">Alle Daten löschen</button></div>';
 };
 A.exportAll = () => download('zoes-finanzen-umsaetze-' + C.today() + '.csv', C.exportCSV(S), 'text/csv;charset=utf-8');
@@ -3098,16 +3274,25 @@ A.backup = async () => { const j = await backupJSON(); S.settings.lastBackup = C
 A.backupCopy = async () => { const j = await backupJSON(); if (await copyText(j)) { S.settings.lastBackup = C.today(); save(); render(); } };
 CH.restore = async (a, el) => {
   const f = el.files && el.files[0]; if (!f) return;
-  try {
-    const o = JSON.parse(decodeText(await readFile(f)));
+  try { restoreFrom(decodeText(await readFile(f))); } catch (e) { toast('Backup ging nicht: ' + e.message); }
+  el.value = '';
+};
+// Backup, das als Text kopiert wurde (z. B. per AirDrop-Notiz vom iPhone auf den Mac)
+A.backupPaste = () => {
+  sheet('Text-Backup einfügen', '<p class="mt0 small muted">Füge hier den Text ein, den du mit „Als Text kopieren“ auf dem anderen Gerät kopiert hast.</p><textarea class="input" id="bp-t" rows="6" style="font-family:monospace;font-size:.75rem" placeholder="{&quot;app&quot;:&quot;zoes-finanzen&quot; …"></textarea>',
+    '<button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn primary" id="bp-ok">Weiter</button>', { focus: '#bp-t' });
+  $('#bp-ok').onclick = () => { try { restoreFrom($('#bp-t').value.trim()); } catch (e) { toast('Backup ging nicht: ' + (e instanceof SyntaxError ? 'Der Text ist unvollständig.' : e.message)); } };
+};
+function restoreFrom(txt) {
+  {
+    const o = JSON.parse(txt);
     if (o.app !== 'zoes-finanzen' || !o.state) throw new Error('Das ist kein Backup von Zoes Finanzen.');
     confirmSheet('Backup laden?', 'Das Backup vom <b>' + esc(fmtD(o.date)) + '</b> ersetzt alle Daten auf diesem Gerät (' + plural((o.state.tx || []).length, 'Buchung', 'Buchungen') + ').', 'Ersetzen', async () => {
       S = C.load(o.state); try { await DB.clear(); for (const k in o.belege || {}) await DB.put(k, o.belege[k]); } catch (e) { S.receiptsFallback = o.belege; }
       save(true); render(); toast('Backup geladen');
     });
-  } catch (e) { toast('Backup ging nicht: ' + e.message); }
-  el.value = '';
-};
+  }
+}
 A.wipe = () => confirmSheet('Wirklich alles löschen?', 'Alle Buchungen, Kategorien, Regeln, Verträge und Sparziele auf diesem Gerät werden gelöscht. Mach vorher ein Backup, wenn du sie behalten willst.', 'Alles löschen', async () => { S = C.newState(); try { await DB.clear(); } catch (e) { /* */ } save(true); U.stack = []; U.view = 'start'; render(); }, true);
 
 /* ---------- Claude fragen ---------- */
@@ -3212,6 +3397,10 @@ A.obDemo = () => {
   // ein paar Beispiele für Budgets, Ziele und Szenarien
   for (const [id, v] of [['lebensmittel', 25000], ['essen', 8000], ['mobilitaet', 12000], ['drogerie', 4000], ['online', 6000]]) C.cat(S, id).budget = v;
   C.cat(S, 'reisen').budget = 90000; C.cat(S, 'geschenke').budget = 30000;
+  // Sparkonto mit Töpfen und Bargeld, damit man die Kontoauswahl ausprobieren kann
+  S.accounts.push({ id: uid('a'), iban: '', name: 'Sparkonto', bank: '', type: 'asset', sub: 'spar', inForecast: false, color: '#1f7a4d', history: [], pots: [{ id: uid('p'), name: 'Urlaub', emoji: '🏖️', amount: 45000, target: 120000, rate: 5000, hist: [] }, { id: uid('p'), name: 'Kfz-Steuer', emoji: '🚗', amount: 9000, rate: 1500, hist: [] }, { id: uid('p'), name: 'Klamotten', emoji: '👗', amount: 6000, rate: 2000, hist: [] }] });
+  const cash = { id: uid('a'), iban: '', name: 'Bargeld', bank: '', type: 'cash', inForecast: false, color: '#7d8a2e', start: 6000 }; S.accounts.push(cash);
+  Object.assign(S.settings, { cashTracking: true, cashAcc: cash.id, cashSince: C.today() });
   S.goals.push({ id: uid('g'), name: 'Urlaub Portugal', emoji: '🏖️', target: 120000, deadline: C.addMonths(C.today(), 8), start: 30000, rate: 0, moves: [{ id: uid('m'), date: C.today(), amount: 15000 }] });
   S.scenarios.push({ id: uid('s'), name: 'Neues Handy', items: [{ label: 'Smartphone', amount: -79900, date: C.addDays(C.today(), 20), repeat: '' }] });
   save(true); U.view = 'start'; render(); toast('Beispieldaten geladen. Du kannst alles ausprobieren.');
